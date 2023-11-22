@@ -17,7 +17,7 @@ jobs:
 
         env:
             CIBW_BUILD: ${{ matrix.python }}*${{ matrix.arch }}
-
+            CIBW_TEST_REQUIRES: numpy
         steps:
             - uses: actions/checkout@v4
               with:
