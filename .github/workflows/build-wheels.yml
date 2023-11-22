@@ -30,4 +30,6 @@ jobs:
               run: make get-dakota-src
             - name: Install cibuildwheel
               run: pip install cibuildwheel
+            - name: Build wheels
+              run: cibuildwheel --output-dir wheelhouse
 
