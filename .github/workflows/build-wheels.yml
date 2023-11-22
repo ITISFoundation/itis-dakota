@@ -15,9 +15,6 @@ jobs:
                 python: [cp38]
                 arch: [x86_64]
 
-        env:
-            CIBW_BUILD: ${{ matrix.python }}*${{ matrix.arch }}
-            CIBW_TEST_REQUIRES: numpy
         steps:
             - uses: actions/checkout@v4
               with:
@@ -28,8 +25,11 @@ jobs:
                   python-version: 3.9
             - name: Get dakota src
               run: make get-dakota-src
-            - name: Install cibuildwheel
-              run: pip install cibuildwheel
-            - name: Build wheels
-              run: cibuildwheel --output-dir wheelhouse
-
+            - uses: pypa/cibuildwheel@v2.16
+              env:
+                CIBW_BUILD: ${{ matrix.python }}*${{ matrix.arch }}
+                CIBW_BEFORE_ALL: "apt install -y gfortran liblapack-dev libboost-dev libboost-filesystem-dev libboost-program-options-dev libboost-regex-dev libboost-serialization-dev libblas-dev python3-dev python3-numpy" 
+            - name: Upload wheels
+              uses: actions/upload-artifact@v3
+              with:
+                path: wheelhouse/*.whl
