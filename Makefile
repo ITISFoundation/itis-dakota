@@ -8,7 +8,7 @@ install:
 	pip install -v .
 
 clean:
-	rm -rf dist/ wheel/ build/
+	rm -rf dist/ wheel/ build/ *.whl wheelhouse/
 
 cache-clean:
 	rm -rf .py-build-cmake_cache/

@@ -1,7 +1,7 @@
 [project] 
-name = "dakota_wheel"
-version = "0.0.2"
-description = "Dakota wheel"
+name = "itis_dakota"
+version = "0.0.3"
+description = "Dakota wheel built by the IT'IS Foundation"
 dependencies = []
 
 [build-system]
@@ -17,8 +17,7 @@ include = ["dakota/*", "CMakeLists.txt"]
 
 [tool.py-build-cmake.cmake]
 source_path = "."
-# options = {"DAKOTA_PYTHON_WRAPPER" = "ON", "BUILD_SHARED_LIBS"="OFF", "CMAKE_SKIP_INSTALL_RPATH" = "ON", "CMAKE_CXX_FLAGS"="-O3", "CMAKE_CXX_CFLAGS"="-O3", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON", "PYTHON_EXECUTABLE" = "/opt/python/cp38-cp38/bin/python"}
-options = {"DAKOTA_PYTHON_WRAPPER" = "ON", "CMAKE_CXX_FLAGS"="-O3", "CMAKE_CXX_CFLAGS"="-O3", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON", "PYTHON_EXECUTABLE" = "/opt/python/cp38-cp38/bin/python"}
+options = {"DAKOTA_PYTHON_WRAPPER" = "ON", "BUILD_SHARED_LIBS"="OFF", "CMAKE_SKIP_INSTALL_RPATH" = "ON", "CMAKE_CXX_FLAGS"="-O3", "CMAKE_CXX_CFLAGS"="-O3", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON"}
 build_args = ["-j"]
 build_type = "Release"
 install_components = ["dakota_for_python"]
