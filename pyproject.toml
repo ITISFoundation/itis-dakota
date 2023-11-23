@@ -13,7 +13,7 @@ before-build = ["pip install numpy", "pip install cmake --upgrade"]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 [tool.py-build-cmake.sdist]
-include = ["dakota/*", "CMakeLists.txt", LICENSE.txt]
+include = ["dakota/*", "CMakeLists.txt", "LICENSE.txt"]
 
 [tool.py-build-cmake.cmake]
 source_path = "."
