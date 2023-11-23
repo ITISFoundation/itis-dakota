@@ -1,3 +1,8 @@
 Copyright (C) IT'IS - All Rights Reserved
 
 Written by Werner Van Geit <vangeit at itis.swiss>, 2023
+
+The external Dakota source code used to build the wheels 
+is distributed under the GNU Lesser General Public License, 
+and the third-party packages and libraries it uses have 
+compatible licenses.
