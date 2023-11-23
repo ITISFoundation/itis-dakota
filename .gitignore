@@ -21,7 +21,7 @@
 *.dll
 
 # Fortran module files
-*.mod
+# *.mod NOTE: used in the Neuron simulator to describe channel kinetics
 *.smod
 
 # Compiled Static libraries
