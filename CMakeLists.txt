@@ -8,10 +8,16 @@ add_subdirectory(dakota EXCLUDE_FROM_ALL)
 
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
 
+
 install(TARGETS dakota
         RUNTIME
         COMPONENT dakota_for_python
         DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
+
+install(TARGETS dakota_src
+        LIBRARY
+        COMPONENT dakota_for_python
+        LIBRARY DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
 install(TARGETS environment
     LIBRARY
