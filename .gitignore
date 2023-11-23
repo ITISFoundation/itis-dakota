@@ -2,3 +2,4 @@ build.sh
 .py-build-cmake_cache/
 dakota_wheel-*
 dakota
+dist
