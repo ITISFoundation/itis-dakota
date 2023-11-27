@@ -9,7 +9,7 @@ requires = ["py-build-cmake", "numpy"]
 build-backend = "py_build_cmake.build"
 
 [tool.cibuildwheel]
-before-build = ["pip install numpy", "pip install cmake --upgrade"]
+before-build = ["pushd /opt/_internal && tar -xJf static-libs-for-embedding-only.tar.xz && popd", "pip install numpy", "pip install cmake --upgrade"]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 [tool.py-build-cmake.sdist]
