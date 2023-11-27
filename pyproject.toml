@@ -1,7 +1,7 @@
 [project] 
 name = "itis_dakota"
 version = "0.0.3"
-description = "Dakota wheel built by the IT'IS Foundation"
+description = "Dakota wheel built by the IT'IS Foundation, Zurich, Switzerland"
 dependencies = []
 
 [build-system]
@@ -10,6 +10,7 @@ build-backend = "py_build_cmake.build"
 
 [tool.cibuildwheel]
 before-build = ["pushd /opt/_internal && tar -xJf static-libs-for-embedding-only.tar.xz && popd", "pip install numpy", "pip install cmake --upgrade"]
+before-all = ["yum install -y gcc-gfortran lapack-devel boost169-devel boost169-filesystem boost169-program-options boost169-regex boost169-serialization blas-devel"]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 [tool.py-build-cmake.sdist]
@@ -17,7 +18,7 @@ include = ["dakota/*", "CMakeLists.txt", "LICENSE.txt"]
 
 [tool.py-build-cmake.cmake]
 source_path = "."
-options = {"DAKOTA_PYTHON_WRAPPER" = "ON", "BUILD_SHARED_LIBS"="OFF", "CMAKE_SKIP_INSTALL_RPATH" = "ON", "CMAKE_CXX_FLAGS"="-O3", "CMAKE_CXX_CFLAGS"="-O3", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON"}
+options = {"DAKOTA_PYTHON_WRAPPER" = "ON", "BUILD_SHARED_LIBS"="OFF", "CMAKE_SKIP_INSTALL_RPATH" = "ON", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON", "BOOST_LIBRARYDIR" = "/usr/lib64/boost169", "BOOST_INCLUDEDIR" = "/usr/include/boost169"}
 build_args = ["-j"]
 build_type = "Release"
 install_components = ["dakota_for_python"]
