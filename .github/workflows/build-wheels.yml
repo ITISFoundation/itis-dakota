@@ -28,10 +28,10 @@ jobs:
               env:
                 CIBW_BUILD: ${{ matrix.python }}*${{ matrix.arch }}
             - name: Upload wheels
-              uses: actions/upload-artifact@v3
+              uses: actions/upload-artifact@v4
               with:
-                name: python-package-distributions
-                path: wheelhouse/*.whl
+                name: wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.arch }}
+                path: ./wheelhouse/*.whl
     test-pypi:
         name: Publish wheels on Test PyPI
         runs-on: ubuntu-latest
@@ -44,9 +44,11 @@ jobs:
             id-token: write
         steps:
             - name: Download all artifacts
-              uses: actions/download-artifact@v3
+              uses: actions/download-artifact@v4
               with:
-                  path: dist/
+                  pattern: wheels-*
+                  path: dist
+                  merge-multiple: true
             - name: Publish package to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
               with:
@@ -68,6 +70,8 @@ jobs:
             - name: Download all artifacts
               uses: actions/download-artifact@v3
               with:
-                  path: dist/
+                  pattern: wheels-*
+                  path: dist
+                  merge-multiple: true
             - name: Publish package to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
