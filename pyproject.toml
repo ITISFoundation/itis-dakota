@@ -14,6 +14,8 @@ before-build = ["pip install auditwheel --upgrade", "pip install numpy", "pip in
 before-all = ["yum install -y lapack-static boost169-static blas-static python3-devel.x86_64"]
 
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && ./scripts/fix_wheel.sh {dest_dir}"
+build-verbosity = 2
+skip = "*-musllinux_*"
 
 # [tool.py-build-cmake.sdist]
 # include = ["dakota/*", "CMakeLists.txt", "LICENSE.txt"]
