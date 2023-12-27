@@ -1,6 +1,8 @@
 Dakota wheel built by the IT'IS Foundation
 ==========================================
 
+[![build-wheel](https://github.com/ITISFoundation/itis-dakota/actions/workflows/build-wheels.yml/badge.svg)](https://github.com/ITISFoundation/itis-dakota/actions/workflows/build-wheels.yml)
+
 This repository contains the code to build a Python wheel
 to load the [Dakota](https://github.com/snl-dakota/dakota) 
 python module.
