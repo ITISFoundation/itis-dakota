@@ -56,6 +56,7 @@ jobs:
               uses: pypa/gh-action-pypi-publish@release/v1
               with:
                   repository-url: https://test.pypi.org/legacy/
+                  skip-existing: true
     
     pypi:
         name: Publish wheels on PyPI
@@ -78,3 +79,4 @@ jobs:
                   merge-multiple: true
             - name: Publish package to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
+              skip-existing: true
