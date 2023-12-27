@@ -247,3 +247,4 @@ pyrightconfig.json
 build.sh
 dakota
 dakota_wheel-*
+wheelhouse
