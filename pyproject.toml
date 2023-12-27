@@ -22,6 +22,6 @@ repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && ./scripts/fix
 source_path = "."
 #options = {"Boost_USE_STATIC_LIBS" = "ON", "DAKOTA_PYTHON_WRAPPER" = "ON", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "BUILD_SHARED_LIBS"="OFF", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON", "BOOST_LIBRARYDIR" = "/usr/lib64/boost169", "BOOST_INCLUDEDIR" = "/usr/include/boost169", "PYTHON_EXECUTABLE" = "/opt/python/cp38-cp38/bin/python", "PYTHON_INCLUDE_DIR" = "/opt/python/cp38-cp38/include", "PYTHON_LIBRARY" = "/opt/python/cp38-cp38/lib/libpython3.8.a", "PYTHON_LIBRARIES" = "/opt/python/cp38-cp38/lib/"}
 options = {"DAKOTA_PYTHON_WRAPPER" = "ON", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "BUILD_SHARED_LIBS"="OFF", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON", "BOOST_LIBRARYDIR" = "/usr/lib64/boost169", "BOOST_INCLUDEDIR" = "/usr/include/boost169", "PYTHON_EXECUTABLE" = "/opt/python/cp38-cp38/bin/python"}
-build_args = ["-j"]
+build_args = ["-j4"]
 build_type = "Release"
 install_components = ["dakota_for_python"]
