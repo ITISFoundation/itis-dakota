@@ -1,7 +1,7 @@
 all:
 
 
-wheel: clean
+wheel: cache-clean clean
 	CIBW_BUILD=cp38*x86_64 cibuildwheel --platform linux
 
 install:
