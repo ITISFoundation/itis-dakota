@@ -11,7 +11,6 @@ build-backend = "py_build_cmake.build"
 [tool.cibuildwheel]
 before-build = ["pip install auditwheel --upgrade", "pip install numpy", "pip install cmake --upgrade"]
 #before-build = ["pip install auditwheel --upgrade", "pushd /opt/_internal && tar -xJf static-libs-for-embedding-only.tar.xz && popd", "pip install numpy", "pip install cmake --upgrade"]
-#before-build = ["pip install numpy", "pip install cmake --upgrade"]
 before-all = ["yum install -y lapack-static boost169-static blas-static python3-devel.x86_64"]
 
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && ./scripts/fix_wheel.sh {dest_dir}"

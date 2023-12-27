@@ -28,7 +28,7 @@ jobs:
             - uses: pypa/cibuildwheel@v2.16
               env:
                 CIBW_BUILD: ${{ matrix.python }}*${{ matrix.arch }}
-                CIBW_BEFORE_ALL: "yum install -y gcc-gfortran lapack-devel boost169-devel boost169-filesystem boost169-program-options boost169-regex boost169-serialization blas-devel"
+                #CIBW_BEFORE_ALL: "yum install -y gcc-gfortran lapack-devel boost169-devel boost169-filesystem boost169-program-options boost169-regex boost169-serialization blas-devel"
             - name: Upload wheels
               uses: actions/upload-artifact@v3
               with:
