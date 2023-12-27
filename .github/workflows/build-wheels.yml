@@ -20,7 +20,7 @@ jobs:
               with:
                   fetch-depth: 0
             - name: Set up sccache
-                  uses: mozilla-actions/sccache-action@v0.0.3
+              uses: mozilla-actions/sccache-action@v0.0.3
             - name: Set up Python
               uses: actions/setup-python@v4
               with:
