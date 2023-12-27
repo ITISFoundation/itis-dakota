@@ -19,4 +19,5 @@ get-dakota-src:
 	cd dakota && \
 		git submodule update --init packages/external && \
 		git submodule update --init packages/pecos && \
-		git submodule update --init packages/surfpack
+		git submodule update --init packages/surfpack && \
+		git apply ../dakota-src.patch
