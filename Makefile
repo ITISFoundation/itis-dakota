@@ -2,7 +2,7 @@ all:
 
 
 wheel: cache-clean clean
-	CIBW_BUILD=cp38*x86_64 CIBW_BUILD_VERBOSITY=10 CIBW_SKIP="*musllinux*" cibuildwheel --platform linux
+	CIBW_BUILD=cp38*x86_64 cibuildwheel --platform linux
 
 install:
 	pip install -v .

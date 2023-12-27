@@ -14,6 +14,10 @@ or redistributing the Work and assume any risks associated
 with Your exercise of permissions under this License.
 
 The external Dakota source code used to build the wheels 
-is distributed under the GNU Lesser General Public License, 
-and the third-party packages and libraries it uses have 
-compatible licenses.
+is distributed under the GNU Lesser General Public License 
+(http://www.gnu.org/licenses/lgpl.html).
+The original Dakota source code can be downloaded from:
+https://github.com/snl-dakota/dakota
+The third-party packages and libraries Dakota uses have 
+compatible licenses. 
+See the Dakota README for more details.
