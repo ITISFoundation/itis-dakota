@@ -18,7 +18,7 @@ build-backend = "py_build_cmake.build"
 
 [tool.versioneer]
 VCS = "git"
-style = "pep440-pre"
+style = "pep440-post"
 versionfile_source = "itis_dakota/_version.py"
 versionfile_build = "itis_dakota/_version.py"
 tag_prefix = ""
@@ -31,7 +31,7 @@ build-verbosity = 2
 
 [tool.cibuildwheel.linux]
 environment-pass = ["SCCACHE_GHA_ENABLED", "ACTIONS_CACHE_URL", "ACTIONS_RUNTIME_TOKEN"]
-before-all = ["yum install -y lapack-devel boost169-devel blas-devel zip unzip ccache wget", "wget https://github.com/mozilla/sccache/releases/download/v0.7.4/sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz", "tar xzvf sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz", "cp sccache-v0.7.4-x86_64-unknown-linux-musl/sccache /usr/bin/"]
+before-all = ["yum install -y lapack-devel boost169-devel blas-devel zip unzip ccache wget", "wget --progress=dot:mega https://github.com/mozilla/sccache/releases/download/v0.7.4/sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz", "tar xzvf sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz", "cp sccache-v0.7.4-x86_64-unknown-linux-musl/sccache /usr/bin/"]
 skip = "*-musllinux_*"
 
 [tool.py-build-cmake.cmake]
