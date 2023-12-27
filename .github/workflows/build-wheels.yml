@@ -13,11 +13,14 @@ jobs:
                 os: [ubuntu-20.04]
                 python: [cp38,cp39,cp310,cp311]
                 arch: [x86_64]
-
+        env:
+            SCCACHE_GHA_ENABLED: "true"
         steps:
             - uses: actions/checkout@v4
               with:
                   fetch-depth: 0
+            - name: Set up sccache
+              uses: mozilla-actions/sccache-action@v0.0.3
             - name: Set up Python
               uses: actions/setup-python@v4
               with:
