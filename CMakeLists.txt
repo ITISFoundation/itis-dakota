@@ -3,8 +3,6 @@ project(itis_dakota)
 
 add_definitions(-w)
 
-# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wall -lpthread -lutil")
-
 find_package(Threads REQUIRED)
 
 set(PY_BUILD_CMAKE_BIN_DIRECTORY ${PY_BUILD_CMAKE_PACKAGE_NAME}-${PY_BUILD_CMAKE_PACKAGE_VERSION}.data/scripts)

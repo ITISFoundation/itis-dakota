@@ -13,7 +13,7 @@ repository = "https://github.com/ITISFoundation/itis-dakota.git"
 issues = "https://github.com/ITISFoundation/itis-dakota/issues"
 
 [build-system]
-requires = ["py-build-cmake", "numpy", "versioneer[toml]"]
+requires = ["py-build-cmake", "numpy", "versioneer[toml]", "h5py", "auditwheel", "flit", "flit-core"]
 build-backend = "py_build_cmake.build"
 
 [tool.versioneer]
@@ -25,18 +25,18 @@ tag_prefix = ""
 parentdir_prefix = ""
 
 [tool.cibuildwheel]
-before-build = ["pip install auditwheel --upgrade", "pip install cmake --upgrade", "pip install flit --upgrade", "pip install flit-core --upgrade"]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && ./scripts/fix_wheel.sh {dest_dir}"
 build-verbosity = 2
 
 [tool.cibuildwheel.linux]
 environment-pass = ["SCCACHE_GHA_ENABLED", "ACTIONS_CACHE_URL", "ACTIONS_RUNTIME_TOKEN"]
-before-all = ["yum install -y lapack-devel boost169-devel blas-devel zip unzip ccache wget", "wget --progress=dot:mega https://github.com/mozilla/sccache/releases/download/v0.7.4/sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz", "tar xzvf sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz", "cp sccache-v0.7.4-x86_64-unknown-linux-musl/sccache /usr/bin/"]
+before-all = ["yum install -y epel-release yum-utils", "yum-config-manager --enable epel", "yum makecache --refresh", "yum install -y lapack-devel boost169-devel blas-devel hdf5-devel zip unzip ccache wget", "wget --progress=dot:mega https://github.com/mozilla/sccache/releases/download/v0.7.4/sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz", "tar xzvf sccache-v0.7.4-x86_64-unknown-linux-musl.tar.gz", "cp sccache-v0.7.4-x86_64-unknown-linux-musl/sccache /usr/bin/"]
 skip = "*-musllinux_*"
+manylinux-x86_64-image="manylinux_2_28"
 
 [tool.py-build-cmake.cmake]
 source_path = "."
-options = {"CMAKE_CXX_COMPILER_LAUNCHER" = "sccache", "DAKOTA_PYTHON_WRAPPER" = "ON", "BUILD_SHARED_LIBS"="OFF", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON", "BOOST_LIBRARYDIR" = "/usr/lib64/boost169", "BOOST_INCLUDEDIR" = "/usr/include/boost169"}
+options = {"CMAKE_CXX_COMPILER_LAUNCHER" = "sccache", "DAKOTA_HAVE_HDF5" = "ON", "DAKOTA_PYTHON_WRAPPER" = "ON", "BUILD_SHARED_LIBS"="OFF", "CMAKE_POSITION_INDEPENDENT_CODE" = "ON", "DAKOTA_PYTHON_DIRECT_INTERFACE" = "ON", "BOOST_LIBRARYDIR" = "/usr/lib64/boost169", "BOOST_INCLUDEDIR" = "/usr/include/boost169"}
 build_args = ["-j8"]
 build_type = "Release"
 install_components = ["dakota_for_python"]
