@@ -15,6 +15,18 @@ Installating the wheel
 pip install itis-dakota
 ```
 
+Using the wheel
+------------------
+
+After installation, the module can be imported:
+```
+import dakota
+import dakota.environment as dakenv
+```
+
+And example on how to use the environment module can be found here:
+https://github.com/snl-dakota/dakota/blob/devel/src/unit/test_dakota_python_env.py
+
 Building the wheel
 ------------------
 
