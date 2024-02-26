@@ -15,6 +15,13 @@ Installating the wheel
 pip install itis-dakota
 ```
 
+Requirements
+------------
+
+At the moment the wheel can be installed on **Linux** ([manylinux_2_28](https://github.com/pypa/manylinux) compatible distributions) only.
+
+Support for other operating systems will be added in the future.
+
 Using the wheel
 ------------------
 
