@@ -20,9 +20,9 @@ jobs:
               with:
                   fetch-depth: 0
             - name: Set up sccache
-              uses: mozilla-actions/sccache-action@v0.0.3
+              uses: mozilla-actions/sccache-action@v0.0.5
             - name: Set up Python
-              uses: actions/setup-python@v4
+              uses: actions/setup-python@v5
               with:
                   python-version: 3.9
             - name: Get dakota src
