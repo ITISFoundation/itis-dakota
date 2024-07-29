@@ -2,7 +2,7 @@ all:
 
 
 wheel: cache-clean clean
-	CIBW_BUILD=cp38*x86_64 cibuildwheel --platform linux
+	CIBW_BUILD=cp311*x86_64 cibuildwheel --platform linux
 
 install:
 	pip install -v .
@@ -15,11 +15,11 @@ cache-clean:
 
 get-dakota-src:
 	rm -rf dakota
-	git clone -j4 --branch v6.19.0 --depth 1 https://github.com/snl-dakota/dakota.git
+	git clone -j4 --branch v6.20.0 --depth 1 https://github.com/snl-dakota/dakota.git
 	cd dakota && \
 		git submodule update --init packages/external && \
 		git submodule update --init packages/pecos && \
 		git submodule update --init packages/surfpack && \
-		git apply ../dakota-src.patch && \
+		git apply ../src_patches/dakota-src.patch && \
 	    find . \( -name \*.cpp -o -name \*.hpp -o -name \*.c -o -name \*.h \) -exec \
-			sed -i -f ../replace_old_macros_numpy.sed {} + ;
+			sed -i -E -f ../src_patches/replace_old_macros_numpy.sed {} +
