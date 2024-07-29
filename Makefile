@@ -20,4 +20,6 @@ get-dakota-src:
 		git submodule update --init packages/external && \
 		git submodule update --init packages/pecos && \
 		git submodule update --init packages/surfpack && \
-		git apply ../dakota-src.patch
+		git apply ../dakota-src.patch && \
+	    find . \( -name \*.cpp -o -name \*.hpp -o -name \*.c -o -name \*.h \) -exec \
+			sed -i -f ../replace_old_macros_numpy.sed {} + ;
