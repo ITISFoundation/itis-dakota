@@ -4,7 +4,7 @@ dynamic = ["version"]
 description = "Dakota wheel built by the IT'IS Foundation, Zurich, Switzerland"
 license = { file = "LICENSE.txt" }
 readme = {file = "README.md", content-type = "text/markdown"}
-dependencies = ["numpy"]
+dependencies = ["numpy<2.0.0"]
 requires-python = ">=3.8"
 
 [project.urls]
@@ -13,7 +13,7 @@ repository = "https://github.com/ITISFoundation/itis-dakota.git"
 issues = "https://github.com/ITISFoundation/itis-dakota/issues"
 
 [build-system]
-requires = ["py-build-cmake", "numpy", "versioneer[toml]", "h5py", "auditwheel", "flit", "flit-core"]
+requires = ["py-build-cmake", "numpy<2.0.0", "versioneer[toml]", "h5py", "auditwheel", "flit", "flit-core"]
 build-backend = "py_build_cmake.build"
 
 [tool.versioneer]

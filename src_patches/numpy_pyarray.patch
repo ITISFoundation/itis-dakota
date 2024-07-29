@@ -1,0 +1,49 @@
+diff --git a/src/PythonInterface.cpp b/src/PythonInterface.cpp
+index 075d769..e094d41 100644
+--- a/src/PythonInterface.cpp
++++ b/src/PythonInterface.cpp
+@@ -475,7 +475,7 @@ python_convert(PyObject *pyv, RealVector& rv, const int& dim)
+ #ifdef DAKOTA_PYTHON_NUMPY
+   // could automatically detect return type instead of throwing error
+   if (userNumpyFlag) {
+-    if (!PyArray_Check(pyv) || PyArray_NDIM(pyv) != 1 || 
++    if (!PyArray_Check(pyv) || PyArray_Converter(pyv, &pyv) || PyArray_NDIM(pyv) != 1 || 
+ 	PyArray_DIM(pyv,0) != dim) {
+       Cerr << "Python numpy array not 1D of size " << dim << "." << std::endl;
+       return(false);
+@@ -517,7 +517,7 @@ python_convert(PyObject *pyv, double *rv, const int& dim)
+ #ifdef DAKOTA_PYTHON_NUMPY
+   // could automatically detect return type instead of throwing error
+   if (userNumpyFlag) {
+-    if (!PyArray_Check(pyv) || PyArray_NDIM(pyv) != 1 || 
++    if (!PyArray_Check(pyv) || PyArray_Converter(pyv, &pyv) || PyArray_NDIM(pyv) != 1 || 
+ 	PyArray_DIM(pyv,0) != dim) {
+       Cerr << "Python numpy array not 1D of size " << dim << "." << std::endl;
+       return(false);
+@@ -556,7 +556,7 @@ bool PythonInterface::python_convert(PyObject *pym, RealMatrix &rm)
+ {
+ #ifdef DAKOTA_PYTHON_NUMPY
+   if (userNumpyFlag) {
+-    if (!PyArray_Check(pym) || PyArray_NDIM(pym) != 2 || 
++    if (!PyArray_Check(pym) || PyArray_Converter(pym, &pym) || PyArray_NDIM(pym) != 2 || 
+ 	PyArray_DIM(pym,0) != numFns  ||  PyArray_DIM(pym,1) != numDerivVars) {
+       Cerr << "Python numpy array not 2D of size " << numFns << "x"
+ 	   << numDerivVars << "." << std::endl;
+@@ -603,7 +603,7 @@ bool PythonInterface::python_convert(PyObject *pym,
+   // Hessian array convert)
+ #ifdef DAKOTA_PYTHON_NUMPY
+   if (userNumpyFlag) {
+-    if (!PyArray_Check(pym) || PyArray_NDIM(pym) != 2 || 
++    if (!PyArray_Check(pym) || PyArray_Converter(pym, &pym) || PyArray_NDIM(pym) != 2 || 
+ 	PyArray_DIM(pym,0) != numDerivVars  ||
+ 	PyArray_DIM(pym,1) != numDerivVars) {
+       Cerr << "Python numpy array not 2D of size " << numDerivVars << "x" 
+@@ -660,7 +660,7 @@ python_convert(PyObject *pyma, RealSymMatrixArray &rma)
+   if (userNumpyFlag) {
+     // cannot recurse in this case as we now have a symmetric matrix 
+     // (clearer this way anyway)
+-    if (!PyArray_Check(pyma) || PyArray_NDIM(pyma) != 3 || 
++    if (!PyArray_Check(pyma) || PyArray_Converter(pyma, &pyma) || PyArray_NDIM(pyma) != 3 || 
+ 	PyArray_DIM(pyma,0) != numFns || PyArray_DIM(pyma,1) != numDerivVars ||
+ 	PyArray_DIM(pyma,2) != numDerivVars ) {
+       Cerr << "Python numpy array not 3D of size " << numFns << "x"
