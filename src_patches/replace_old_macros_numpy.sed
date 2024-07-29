@@ -149,3 +149,4 @@ s/\bPyArray_MAX_ELSIZE\b/NPY_MAX_ELSIZE/g
 s/\bPyArray_USE_PYMEM\b/NPY_USE_PYMEM/g
 s/\bPyArray_RemoveLargest\b/PyArray_RemoveSmallest/g
 s/\bPyArray_UCS4\b/npy_ucs4/g
+s/PyArray_(DIM|NDIM)\(([[:alpha:]]*)([^)]*)\)/PyArray_\1(reinterpret_cast<PyArrayObject*>(\2)\3)/g
