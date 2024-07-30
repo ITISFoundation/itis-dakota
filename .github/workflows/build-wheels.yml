@@ -9,13 +9,13 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write
-        if: github.ref == 'refs/heads/master'
         outputs:
           new_tag: ${{ steps.tag_version.outputs.new_tag}}
           changelog: ${{ steps.tag_version.outputs.changelog}}
         steps:
             - name: Bump version and push tag
               id: tag_version
+              if: github.ref == 'refs/heads/master'
               uses: anothrNick/github-tag-action@1.64.0
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
