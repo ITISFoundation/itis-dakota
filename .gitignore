@@ -248,3 +248,4 @@ build.sh
 dakota
 dakota_wheel-*
 wheelhouse
+itis_dakota/.version

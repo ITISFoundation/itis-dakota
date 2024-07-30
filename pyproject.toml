@@ -53,7 +53,9 @@ before-all = [
     "yum install -y lapack-devel boost169-devel blas-devel hdf5-devel zip unzip ccache wget",
     "wget --progress=dot:mega https://github.com/mozilla/sccache/releases/download/v0.8.1/sccache-v0.8.1-x86_64-unknown-linux-musl.tar.gz",
     "tar xzvf sccache-v0.8.1-x86_64-unknown-linux-musl.tar.gz",
-    "cp sccache-v0.8.1-x86_64-unknown-linux-musl/sccache /usr/bin/"
+    "cp sccache-v0.8.1-x86_64-unknown-linux-musl/sccache /usr/bin/",
+    "pip install setuptools_scm",
+    "python -m setuptools_scm --force-write-version-files"
 ]
 skip = "*-musllinux_*"
 manylinux-x86_64-image="manylinux_2_28"
