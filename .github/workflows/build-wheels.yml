@@ -35,6 +35,7 @@ jobs:
             SCCACHE_GHA_ENABLED: "on"
         permissions:
             contents: write
+        needs: tag
         steps:
             - uses: actions/checkout@v4
               with:
@@ -62,7 +63,9 @@ jobs:
         permissions:
             contents: write
         if: github.ref == 'refs/heads/master'
-        needs: tag
+        needs: 
+          - tag
+          - wheels
         steps:
             - name: Download all artifacts
               uses: actions/download-artifact@v4
@@ -83,7 +86,7 @@ jobs:
         name: Publish wheels on Test PyPI
         runs-on: ubuntu-latest
         needs:
-            - wheels
+            - release
         if: github.ref == 'refs/heads/master'
         environment:
             name: testpypi
