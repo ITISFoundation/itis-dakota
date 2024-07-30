@@ -5,7 +5,7 @@ on:
        
 jobs:
     tag:
-        name: Tagging new version
+        name: Tag new version
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -13,6 +13,9 @@ jobs:
           new_tag: ${{ steps.tag_version.outputs.new_tag}}
           changelog: ${{ steps.tag_version.outputs.changelog}}
         steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
             - name: Bump version and push tag
               id: tag_version
               if: github.ref == 'refs/heads/master'
@@ -23,12 +26,12 @@ jobs:
                   DEFAULT_BUMP: patch
       
     wheels:
-        name: Building wheel on ${{ matrix.python }} ${{ matrix.os }} ${{ matrix.arch }}
+        name: Build wheel on ${{ matrix.python }} ${{ matrix.os }} ${{ matrix.arch }}
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: true
             matrix:
-                os: [ubuntu-20.04]
+                os: [ubuntu-latest]
                 python: [cp38,cp39,cp310,cp311,cp312]
                 arch: [x86_64]
         env:
@@ -58,7 +61,7 @@ jobs:
                 path: ./wheelhouse/*.whl
 
     release:
-        name: Creating new github release
+        name: Create new github release
         runs-on: ubuntu-latest
         permissions:
             contents: write
