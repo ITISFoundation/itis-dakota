@@ -10,8 +10,8 @@ jobs:
         permissions:
             contents: write
         outputs:
-          new_tag: ${{ steps.tag_version.outputs.new_tag}}
-          changelog: ${{ steps.tag_version.outputs.changelog}}
+          new_tag: ${{ steps.tag_version.outputs.new_tag }}
+          changelog: ${{ steps.tag_version.outputs.changelog }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -77,10 +77,8 @@ jobs:
               uses: ncipollo/release-action@v1
               with:
                 tag: ${{ needs.tag.new_tag }}
-                name: ${{ needs.tag.new_tag }}
-                body: ${{ needs.tag.changelog }} 
+                generateReleaseNotes: true
                 artifacts: wheels-*
-              
 
     test-pypi:
         name: Publish wheels on Test PyPI
