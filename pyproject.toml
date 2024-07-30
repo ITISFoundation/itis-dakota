@@ -1,11 +1,14 @@
 [project] 
 name = "itis_dakota"
-dynamic = ["version"]
 description = "Dakota wheel built by the IT'IS Foundation, Zurich, Switzerland"
 license = { file = "LICENSE.txt" }
+authors = [
+    {name="Werner Van Geit"}
+]
 readme = {file = "README.md", content-type = "text/markdown"}
 dependencies = ["numpy"]
 requires-python = ">=3.8"
+dynamic = ["version"]
 
 [project.urls]
 homepage = "https://github.com/ITISFoundation/itis-dakota"
@@ -16,21 +19,22 @@ issues = "https://github.com/ITISFoundation/itis-dakota/issues"
 requires = [
     "py-build-cmake",
     "numpy",
-    "versioneer[toml]",
     "h5py",
     "auditwheel",
     "flit",
-    "flit-core"
+    "flit-core",
+    "setuptools",
+    "setuptools_scm"
 ]
 build-backend = "py_build_cmake.build"
 
-[tool.versioneer]
-VCS = "git"
-style = "pep440-post"
-versionfile_source = "itis_dakota/_version.py"
-versionfile_build = "itis_dakota/_version.py"
-tag_prefix = ""
-parentdir_prefix = ""
+[tool.setuptools]
+packages = ["itis_dakota"]
+package-dir = {"itis_dakota" = "itis_dakota"}
+
+[tool.setuptools_scm]
+version_file = "itis_dakota/_version.py"
+local_scheme = "no-local-version"
 
 [tool.cibuildwheel]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && ./scripts/fix_wheel.sh {dest_dir}"
