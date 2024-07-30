@@ -76,7 +76,7 @@ jobs:
             - name: Create a GitHub release
               uses: ncipollo/release-action@v1
               with:
-                tag: ${{ needs.tag.new_tag }}
+                tag: ${{ needs.tag.outputs.new_tag }}
                 generateReleaseNotes: true
                 artifacts: wheels-*
 
