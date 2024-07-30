@@ -70,12 +70,9 @@ jobs:
           - tag
           - wheels
         steps:
-            - name: Download all artifacts
-              uses: actions/download-artifact@v4
+            - uses: actions/checkout@v4
               with:
-                  pattern: wheels-*
-                  path: dist
-                  merge-multiple: true
+                  fetch-depth: 0
             - name: Create a GitHub release
               uses: ncipollo/release-action@v1
               with:
