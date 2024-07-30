@@ -4,19 +4,41 @@ on:
     push:
        
 jobs:
+    tag:
+        name: Tag new version
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        outputs:
+          new_tag: ${{ steps.tag_version.outputs.new_tag}}
+          changelog: ${{ steps.tag_version.outputs.changelog}}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - name: Bump version and push tag
+              id: tag_version
+              if: github.ref == 'refs/heads/master'
+              uses: anothrNick/github-tag-action@1.64.0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  WITH_V: false
+                  DEFAULT_BUMP: patch
+      
     wheels:
-        name: Building wheel on ${{ matrix.python }} ${{ matrix.os }} ${{ matrix.arch }}
+        name: Build wheel on ${{ matrix.python }} ${{ matrix.os }} ${{ matrix.arch }}
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: true
             matrix:
-                os: [ubuntu-20.04]
+                os: [ubuntu-latest]
                 python: [cp38,cp39,cp310,cp311,cp312]
                 arch: [x86_64]
         env:
             SCCACHE_GHA_ENABLED: "on"
         permissions:
             contents: write
+        needs: tag
         steps:
             - uses: actions/checkout@v4
               with:
@@ -27,33 +49,47 @@ jobs:
               uses: actions/setup-python@v5
               with:
                   python-version: 3.11
-            - name: Bump version and push tag
-              if: ${{ github.ref == 'refs/heads/master' }}
-              id: tag_version
-              uses: anothrNick/github-tag-action@1.64.0
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  WITH_V: false
-                  DEFAULT_BUMP: patch
             - name: Get dakota src
               run: make get-dakota-src
             - uses: pypa/cibuildwheel@v2.16
               env:
                 CIBW_BUILD: ${{ matrix.python }}*${{ matrix.arch }}
+            - name: Upload wheels
+              uses: actions/upload-artifact@v4
+              with:
+                name: wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.arch }}
+                path: ./wheelhouse/*.whl
+
+    release:
+        name: Create new github release
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        if: github.ref == 'refs/heads/master'
+        needs: 
+          - tag
+          - wheels
+        steps:
+            - name: Download all artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: wheels-*
+                  path: dist
+                  merge-multiple: true
             - name: Create a GitHub release
-              if: ${{ github.ref == 'refs/heads/master' }}
               uses: ncipollo/release-action@v1
               with:
-                  tag: ${{ steps.tag_version.outputs.new_tag }}
-                  name: Release ${{ steps.tag_version.outputs.new_tag }}
-                  body: ${{ steps.tag_version.outputs.changelog }}
-                  artifacts: ./wheelhouse/*.whl
-          
+                tag: ${{ needs.tag.new_tag }}
+                name: ${{ needs.tag.new_tag }}
+                body: ${{ needs.tag.changelog }} 
+                artifacts: wheels-*
+              
+
     test-pypi:
         name: Publish wheels on Test PyPI
         runs-on: ubuntu-latest
         needs:
-            - wheels
+            - release
         if: github.ref == 'refs/heads/master'
         environment:
             name: testpypi
