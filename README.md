@@ -8,7 +8,7 @@ to load the [Dakota](https://github.com/snl-dakota/dakota)
 python module.
 
 
-Installating the wheel
+Installing the wheel
 ----------------------
 
 ```
