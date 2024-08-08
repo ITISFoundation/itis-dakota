@@ -18,15 +18,13 @@ issues = "https://github.com/ITISFoundation/itis-dakota/issues"
 [build-system]
 requires = [
     "py-build-cmake",
-    "numpy",
-    "h5py",
     "auditwheel",
-    "flit",
-    "flit-core",
     "setuptools",
-    "setuptools_scm"
+    "setuptools_scm",
+    "numpy"
 ]
-build-backend = "py_build_cmake.build"
+build-backend = "build_backend.build"
+backend-path = "."
 
 [tool.setuptools]
 packages = ["itis_dakota"]
