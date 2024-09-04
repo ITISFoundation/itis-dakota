@@ -1,0 +1,22 @@
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index bd008bc..fd0adca 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -877,7 +877,7 @@ list(APPEND EXPORT_TARGETS dakota_src_fortran)
+ add_library(dakota_src ${Dakota_src})
+ # When using Boost imported targets, we only link libraries using them,
+ # then rely on transitive library linking from CMake
+-target_link_libraries(dakota_src dakota_src_fortran ${DAKOTA_BOOST_TARGETS})
++target_link_libraries(dakota_src dakota_src_fortran ${Boost_LIBRARIES})
+ # Dakota should always depend on util (consider removing option in DakotaOptions.cmamke
+ target_link_libraries(dakota_src dakota_util)
+ list(APPEND EXPORT_TARGETS dakota_util)
+@@ -1052,7 +1052,7 @@ set(Dakota_LIBRARIES ${DAKOTA_LIBS} ${DAKOTA_PKG_LIBS} ${DAKOTA_EXTPROJ_LIBS}
+ 
+ # Libraries that will be on the system
+ # We add Boost libraries by path/name here for Makefile.export purposes
+-set(Dakota_TPL_LIBRARIES ${EXT_TPL_LIBS} ${Boost_LIBRARIES}
++set(Dakota_TPL_LIBRARIES ${EXT_TPL_LIBS}
+   CACHE INTERNAL "Dakota TPL libraries") 
+  
+ message(STATUS "Dakota_LIBRARIES: ${Dakota_LIBRARIES}")
