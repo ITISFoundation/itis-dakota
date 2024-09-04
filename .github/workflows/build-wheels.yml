@@ -54,12 +54,16 @@ jobs:
             - name: Set up Python
               uses: actions/setup-python@v5
               with:
-                  python-version: 3.11
+                  python-version: ${{ matrix.python }}
             - name: Get dakota src
               run: make get-dakota-src
             - uses: pypa/cibuildwheel@v2.16
               env:
                 CIBW_BUILD: ${{ matrix.python }}*${{ matrix.arch }}
+            - name: Run tests
+              run:
+                pip install ./wheelhouse/*.whl
+                make test
             - name: Upload wheels
               uses: actions/upload-artifact@v4
               with:

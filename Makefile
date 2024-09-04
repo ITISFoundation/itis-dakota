@@ -4,6 +4,9 @@ all:
 wheel: cache-clean clean
 	CIBW_BUILD=cp311*x86_64 cibuildwheel --platform linux
 
+test:
+	pytest
+
 install:
 	pip install -v .
 
