@@ -32,7 +32,7 @@ jobs:
             fail-fast: true
             matrix:
                 os: [ubuntu-latest]
-                python: [cp38,cp39,cp310,cp311,cp312]
+                python: ['3.8', '3.9', '3.10', '3.11', '3.12']
                 arch: [x86_64]
         env:
             SCCACHE_GHA_ENABLED: "on"
@@ -40,6 +40,11 @@ jobs:
             contents: write
         needs: tag
         steps:
+            - name: Set cibuildwheel Python version
+              run: |
+                python_version="${{ matrix.python-version }}"
+                cibw_python="cp${python_version/./}"
+                echo "CIBW_PYTHON=$cibw_python" >> $GITHUB_ENV
             - uses: actions/checkout@v4
               if: github.ref != 'refs/heads/master'
               with:
@@ -59,15 +64,15 @@ jobs:
               run: make get-dakota-src
             - uses: pypa/cibuildwheel@v2.16
               env:
-                CIBW_BUILD: ${{ matrix.python }}*${{ matrix.arch }}
+                CIBW_BUILD: ${{ env.CIBW_PYTHON }}*${{ matrix.arch }}
             - name: Run tests
-              run:
+              run: |
                 pip install ./wheelhouse/*.whl
                 make test
             - name: Upload wheels
               uses: actions/upload-artifact@v4
               with:
-                name: wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.arch }}
+                name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}-${{ matrix.arch }}
                 path: ./wheelhouse/*.whl
 
     release:
