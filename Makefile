@@ -21,6 +21,7 @@ get-dakota-src:
 		git submodule update --init packages/pecos && \
 		git submodule update --init packages/surfpack && \
 		git apply ../src_patches/dakota-src.patch && \
+		git apply ../src_patches/boost.patch && \
 		git apply ../src_patches/dakenv_restart.patch && \
 		git apply --whitespace=nowarn ../src_patches/adaptsampl_batch.patch && \
 	    find . \( -name \*.cpp -o -name \*.hpp -o -name \*.c -o -name \*.h \) -exec \
