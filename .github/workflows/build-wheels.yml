@@ -67,6 +67,7 @@ jobs:
                 CIBW_BUILD: ${{ env.CIBW_PYTHON }}*${{ matrix.arch }}
             - name: Run tests
               run: |
+                pip install pytest
                 pip install ./wheelhouse/*.whl
                 make test
             - name: Upload wheels

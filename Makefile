@@ -7,8 +7,11 @@ wheel: cache-clean clean
 test:
 	pytest
 
-install:
+install: cache-clean
 	pip install -v .
+
+pipwheel: cache-clean
+	pip wheel -v .
 
 clean:
 	rm -rf dist/ wheel/ build/ *.whl wheelhouse/
