@@ -7,3 +7,4 @@ dakota
 dakota_wheel-*
 wheelhouse
 itis_dakota/_version.py
+/wheel
