@@ -10,8 +10,8 @@ test:
 install: cache-clean
 	pip install -v .
 
-pipwheel: cache-clean
-	pip wheel -v .
+pipwheel: cache-clean clean
+	pip wheel -v . -w wheel
 
 clean:
 	rm -rf dist/ wheel/ build/ *.whl wheelhouse/
