@@ -42,7 +42,7 @@ jobs:
         steps:
             - name: Set cibuildwheel Python version
               run: |
-                python_version="${{ matrix.python-version }}"
+                python_version="${{ matrix.python }}"
                 cibw_python="cp${python_version/./}"
                 echo "CIBW_PYTHON=$cibw_python" >> $GITHUB_ENV
             - uses: actions/checkout@v4
