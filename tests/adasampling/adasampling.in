@@ -8,7 +8,6 @@ environment
         id_method = 'ADAPTIVE_SAMPLING'
         adaptive_sampling
             max_iterations 5
-            samples_on_emulator 20
             fitness_metric gradient
             initial_samples = 1
             model_pointer = "TRUE_MODEL"
