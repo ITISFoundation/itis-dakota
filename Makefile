@@ -4,8 +4,14 @@ all:
 wheel: cache-clean clean
 	CIBW_BUILD=cp311*x86_64 cibuildwheel --platform linux
 
-install:
+test:
+	python -m pytest
+
+install: cache-clean
 	pip install -v .
+
+pipwheel: cache-clean clean
+	pip wheel -v . -w wheel
 
 clean:
 	rm -rf dist/ wheel/ build/ *.whl wheelhouse/

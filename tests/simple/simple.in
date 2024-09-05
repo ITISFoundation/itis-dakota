@@ -1,0 +1,44 @@
+environment
+    tabular_data
+        tabular_data_file
+            'dakota_tabular.dat'
+    top_method_pointer = 'SAMPLING'
+
+    method
+        id_method = 'SAMPLING'
+        sampling 
+            sample_type lhs
+            samples 10
+            model_pointer = "TRUE_MODEL"
+            seed 1234
+
+    model
+        id_model = 'TRUE_MODEL'
+        single
+            interface_pointer = 'INTERFACE'
+            variables_pointer = 'VARIABLES'
+            responses_pointer = 'RESPONSES'
+
+    variables
+        id_variables = 'VARIABLES'
+        continuous_design = 2
+            descriptors       'PARAM1'   'PARAM2'
+            initial_point     0.5        1.0
+            lower_bounds      0.0        0.0
+            upper_bounds      1.0        2.0
+
+    interface,
+        id_interface = 'INTERFACE'
+        python 
+            analysis_drivers
+                'evaluator'
+            failure_capture
+                recover
+                    NaN NaN
+
+    responses
+        id_responses = 'RESPONSES'
+        descriptors 'OBJ1' 'OBJ2'
+        objective_functions = 2
+        no_gradients
+        no_hessians

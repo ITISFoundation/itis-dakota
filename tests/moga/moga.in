@@ -1,0 +1,46 @@
+# Specify the output file for tabular data
+environment
+    tabular_data
+        tabular_data_file
+            'dakota_tabular.dat'
+    top_method_pointer = 'MULTIOBJ_OPTIMIZATION'
+
+# Define the optimization method
+method
+    id_method = 'MULTIOBJ_OPTIMIZATION'
+    moga  # Multi-Objective Genetic Algorithm
+        model_pointer = "TRUE_MODEL"
+        seed 1234  # Set random seed for reproducibility
+        max_function_evaluations 100  # Maximum number of function evaluations
+
+# Define the model
+model
+    id_model = 'TRUE_MODEL'
+    single
+        interface_pointer = 'INTERFACE'
+        variables_pointer = 'VARIABLES'
+        responses_pointer = 'RESPONSES'
+
+# Define the variables
+variables
+    id_variables = 'VARIABLES'
+    continuous_design = 3  # Number of continuous design variables
+        descriptors       'PARAM1'   'PARAM2'   'PARAM3'
+        initial_point     2.0        3.0        4.0
+        lower_bounds      0.0        0.0        0.0
+        upper_bounds      10.0       10.0       10.0
+
+# Define the interface
+interface
+    id_interface = 'INTERFACE'
+    python 
+        analysis_drivers
+            'evaluator'  # Python script to evaluate the objectives
+
+# Define the responses
+responses
+    id_responses = 'RESPONSES'
+    descriptors 'OBJ1' 'OBJ2'
+    objective_functions = 2  # Number of objective functions
+    no_gradients  # Gradients will not be provided
+    no_hessians  # Hessians will not be provided

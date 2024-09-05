@@ -10,12 +10,12 @@ set(PY_BUILD_CMAKE_LIB_DIRECTORY ${PY_BUILD_CMAKE_PACKAGE_NAME}-${PY_BUILD_CMAKE
 
 add_subdirectory(dakota EXCLUDE_FROM_ALL)
 
-add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src ${Dakota_TPL_LIBRARIES})
+add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src)
 
-#install(TARGETS dakota
-#        RUNTIME
-#        COMPONENT dakota_for_python
-#        DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
+# install(TARGETS dakota
+#         RUNTIME
+#         COMPONENT dakota_for_python
+#         DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
 install(TARGETS dakota_src
         LIBRARY
