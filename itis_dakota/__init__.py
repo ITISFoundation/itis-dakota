@@ -1,7 +1,2 @@
-from importlib.metadata import PackageNotFoundError, version
-
-try:
-    __version__ = version("itis-dakota")
-except PackageNotFoundError:
-    # package is not installed
-    pass
+from ._version import __version__ #NOQA
+from ._version import __version_tuple__ #NOQA
