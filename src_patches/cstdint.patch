@@ -1,0 +1,24 @@
+diff --git a/trilinos/packages/teuchos/core/src/Teuchos_BigUInt.hpp b/trilinos/packages/teuchos/core/src/Teuchos_BigUInt.hpp
+index 5b6d3c5e..7fbfec7b 100644
+--- a/trilinos/packages/teuchos/core/src/Teuchos_BigUInt.hpp
++++ b/trilinos/packages/teuchos/core/src/Teuchos_BigUInt.hpp
+@@ -43,6 +43,7 @@
+ #define TEUCHOS_BIG_UINT_HPP
+ 
+ #include <iostream>
++#include <cstdint>
+ #include <Teuchos_BigUIntDecl.hpp>
+ 
+ /*! \file Teuchos_BigUInt.hpp
+diff --git a/trilinos/packages/teuchos/core/src/Teuchos_BigUIntDecl.hpp b/trilinos/packages/teuchos/core/src/Teuchos_BigUIntDecl.hpp
+index e82e8be9..a51f66cf 100644
+--- a/trilinos/packages/teuchos/core/src/Teuchos_BigUIntDecl.hpp
++++ b/trilinos/packages/teuchos/core/src/Teuchos_BigUIntDecl.hpp
+@@ -42,6 +42,7 @@
+ #ifndef TEUCHOS_BIG_UINT_DECL_HPP
+ #define TEUCHOS_BIG_UINT_DECL_HPP
+ 
++#include <cstdint>
+ #include <iosfwd>
+ 
+ /*! \file Teuchos_BigUIntDecl.hpp
