@@ -1,5 +1,5 @@
 diff --git a/cmake/DakotaFindPython.cmake b/cmake/DakotaFindPython.cmake
-index 9ffa1ca..8edd853 100644
+index 9ffa1ca..d7a2152 100644
 --- a/cmake/DakotaFindPython.cmake
 +++ b/cmake/DakotaFindPython.cmake
 @@ -8,7 +8,7 @@ macro(dakota_find_python)
@@ -7,16 +7,7 @@ index 9ffa1ca..8edd853 100644
  	DAKOTA_PYTHON_WRAPPER OR DAKOTA_PYBIND11)
        message(STATUS "Dakota enabling Python (Development) for direct or surrogate interface")
 -      list(APPEND dakota_python_components Development)
-+      list(APPEND dakota_python_components Development.module)
++            list(APPEND dakota_python_components Development.Module)
        
        if (DAKOTA_PYTHON_DIRECT_INTERFACE_LEGACY)
          if (DAKOTA_PYTHON_DIRECT_INTERFACE)
-@@ -31,7 +31,7 @@ macro(dakota_find_python)
- 
-     endif()
- 
--    find_package(Python REQUIRED ${dakota_python_components})
-+    # find_package(Python REQUIRED ${dakota_python_components})
- 
-     if (DAKOTA_PYTHON_DIRECT_INTERFACE_NUMPY)
- 	message(STATUS "NumPy version ${Python_NumPy_VERSION} found at ${Python_NumPy_INCLUDE_DIRS}")

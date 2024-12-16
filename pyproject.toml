@@ -38,7 +38,7 @@ local_scheme = "no-local-version"
 
 [tool.cibuildwheel]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && ./scripts/fix_wheel.sh {dest_dir}"
-build-verbosity = 2
+build-verbosity = 1
 
 [tool.cibuildwheel.environment]
 BOOST_LIBRARYDIR = "/usr/lib64/boost1.78"
@@ -59,7 +59,7 @@ before-all = [
     "tar xzvf sccache-v0.8.1-x86_64-unknown-linux-musl.tar.gz",
     "cp sccache-v0.8.1-x86_64-unknown-linux-musl/sccache /usr/bin/",
     "pip install setuptools_scm",
-    "python -m setuptools_scm --force-write-version-files"
+    "python -m setuptools_scm --force-write-version-files",
 ]
 skip = "*-musllinux_*"
 manylinux-x86_64-image="quay.io/pypa/manylinux_2_28_x86_64:2024-12-05-7ed1b2d"
@@ -79,6 +79,7 @@ DAKOTA_PYTHON_WRAPPER = "ON"
 DAKOTA_PYTHON_DIRECT_INTERFACE = "ON"
 BUILD_SHARED_LIBS = "OFF"
 CMAKE_POSITION_INDEPENDENT_CODE = "ON"
+# CMAKE_VERBOSE_MAKEFILE = "ON"
 
 [tool.pytest.ini_options]
 addopts = "--ignore=dakota/"
