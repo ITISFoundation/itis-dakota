@@ -21,12 +21,12 @@ cache-clean:
 
 get-dakota-src:
 	rm -rf dakota
-	git clone -j4 --branch v6.20.0 --depth 1 https://github.com/snl-dakota/dakota.git
+	git clone -j4 --branch v6.21.0 --depth 1 https://github.com/snl-dakota/dakota.git
 	cd dakota && \
 		git submodule update --init packages/external && \
 		git submodule update --init packages/pecos && \
 		git submodule update --init packages/surfpack && \
-		git apply ../src_patches/dakota-src.patch && \
+		git apply ../src_patches/findpython.patch && \
 		git apply ../src_patches/boost.patch && \
 		git apply ../src_patches/dakenv_restart.patch && \
 		git apply ../src_patches/cstdint_dak_types.patch && \

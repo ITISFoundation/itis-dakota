@@ -1,0 +1,21 @@
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 1cce3d2..2670950 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -325,11 +325,11 @@ if(DAKOTA_PYTHON_DIRECT_INTERFACE)
+   # TODO: Use target_definitions
+   # If not, use  Python_LIBRARY_DIRS
+ 
+-  if(DAKOTA_PYTHON_DIRECT_INTERFACE_LEGACY) 
+-    list(APPEND EXT_TPL_INCDIRS ${Python_INCLUDE_DIRS})
+-    add_definitions("-DDAKOTA_PYTHON_LEGACY")
+-    list(APPEND EXT_TPL_LIBS ${Python_LIBRARIES})
+-  endif()
++  # if(DAKOTA_PYTHON_DIRECT_INTERFACE_LEGACY) 
++  list(APPEND EXT_TPL_INCDIRS ${Python_INCLUDE_DIRS})
++  # add_definitions("-DDAKOTA_PYTHON_LEGACY")
++  list(APPEND EXT_TPL_LIBS ${Python_LIBRARIES})
++  # endif()
+   # Pybind11 is also included alongside older Python interface
+   list(APPEND EXT_TPL_INCDIRS ${pybind11_INCLUDE_DIR})
+   add_definitions("-DDAKOTA_PYBIND11")
