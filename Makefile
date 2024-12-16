@@ -1,6 +1,5 @@
 all:
 
-
 wheel: cache-clean clean
 	CIBW_BUILD=cp311*x86_64 cibuildwheel --platform linux
 
@@ -32,7 +31,5 @@ get-dakota-src:
 		git apply ../src_patches/dakenv_restart.patch && \
 		git apply ../src_patches/cstdint_dak_types.patch && \
 		git apply --whitespace=nowarn ../src_patches/adaptsampl_batch.patch
-	  #   find . \( -name \*.cpp -o -name \*.hpp -o -name \*.c -o -name \*.h \) -exec \
-			# sed -i -E -f ../src_patches/replace_old_macros_numpy.sed {} +
 	cd dakota/packages/external && \
 		git apply ../../../src_patches/cstdint.patch
