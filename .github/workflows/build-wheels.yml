@@ -35,7 +35,12 @@ jobs:
             matrix:
                 os: [ubuntu-latest]
                 python: ['3.8', '3.9', '3.10', '3.11', '3.12']
-                arch: [x86_64,arm64]
+                arch:
+                  - x86_64:
+                    WHEEL_PLATFORM: 'x86_64'
+                  - arm64:
+                    WHEEL_PLATFORM: 'aarch64'
+            
         env:
             SCCACHE_GHA_ENABLED: "on"
         permissions:
@@ -66,7 +71,7 @@ jobs:
               run: make get-dakota-src
             - uses: pypa/cibuildwheel@v2.16
               env:
-                CIBW_BUILD: ${{ env.CIBW_PYTHON }}*${{ matrix.arch }}
+                CIBW_BUILD: ${{ env.CIBW_PYTHON }}*${{ env.WHEEL_PLATFORM }}
             - name: Run tests
               run: |
                 pip install pytest
