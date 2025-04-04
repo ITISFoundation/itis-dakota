@@ -28,7 +28,7 @@ jobs:
                   DEFAULT_BUMP: patch
 
     wheels:
-        name: Build wheel on ${{ matrix.python }} ${{ matrix.os }} ${{ matrix.arch }}
+        name: Build wheel on ${{ matrix.python }} ${{ matrix.os }} ${{ matrix.arch.WHEEL_PLATFORM }}
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: true
