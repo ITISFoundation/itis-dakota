@@ -44,7 +44,7 @@ jobs:
                       WHEEL_PLATFORM: 'aarch64'
             
         env:
-            SCCACHE_GHA_ENABLED: "on"
+            SCCACHE_GHA_ENABLED: "off"
         permissions:
             contents: write
         needs: tag

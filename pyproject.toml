@@ -71,7 +71,7 @@ build_type = "Release"
 install_components = ["dakota_for_python"]
 
 [tool.py-build-cmake.cmake.options]
-CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
+# CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
 DAKOTA_HAVE_HDF5 = "ON"
 HAVE_QUESO = "ON"
 DAKOTA_HAVE_GSL = "ON"
