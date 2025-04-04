@@ -75,7 +75,7 @@ jobs:
             - uses: pypa/cibuildwheel@v2.16
               env:
                 CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
-                CIBW_ARCHS: ${{ matrix.WHEEL_PLATFORM }}
+                CIBW_ARCHS: ${{ matrix.wheel-platform }}
             - name: Run tests
               run: |
                 pip install pytest
