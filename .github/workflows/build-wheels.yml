@@ -38,8 +38,8 @@ jobs:
                 # python: ['3.8', '3.9', '3.10', '3.11', '3.12']
                 arch: [arm64]
                 include:
-                    - arch: x86_64
-                      WHEEL_PLATFORM: 'x86_64'
+                    # - arch: x86_64
+                    #   WHEEL_PLATFORM: 'x86_64'
                     - arch: arm64
                       WHEEL_PLATFORM: 'aarch64'
             
