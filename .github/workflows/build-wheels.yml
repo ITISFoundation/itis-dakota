@@ -36,9 +36,9 @@ jobs:
                 os: [ubuntu-latest]
                 python: ['3.8', '3.9', '3.10', '3.11', '3.12']
                 arch:
-                  - x86_64:
+                  - env: x86_64
                     WHEEL_PLATFORM: 'x86_64'
-                  - arm64:
+                  - env: arm64
                     WHEEL_PLATFORM: 'aarch64'
             
         env:
