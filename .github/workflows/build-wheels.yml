@@ -79,7 +79,7 @@ jobs:
             - name: Upload wheels
               uses: actions/upload-artifact@v4
               with:
-                name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}-${{ matrix.arch }}
+                name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}-${{ matrix.wheel-platform }}
                 path: ./wheelhouse/*.whl
 
     release:
