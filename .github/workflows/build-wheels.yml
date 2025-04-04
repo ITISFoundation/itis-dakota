@@ -44,8 +44,6 @@ jobs:
                       github-runner: 'ubuntu-24.04-arm'
                       wheel-platform: 'aarch64'
             
-        env:
-            SCCACHE_GHA_ENABLED: "off"
         permissions:
             contents: write
         needs: tag
@@ -64,8 +62,6 @@ jobs:
               with:
                   fetch-depth: 0
                   ref: ${{ needs.tag.outputs.new_tag }}
-            - name: Set up sccache
-              uses: mozilla-actions/sccache-action@v0.0.5
             - name: Set up Python
               uses: actions/setup-python@v5
               with:

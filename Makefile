@@ -1,7 +1,7 @@
 all:
 
 wheel: cache-clean clean
-	CIBW_BUILD="cp312-*" CIBW_ARCHS="aarch64" cibuildwheel --platform linux
+	CIBW_BUILD="cp312-*" CIBW_ARCHS="x86_64" cibuildwheel --platform linux
 
 test:
 	python -m pytest
