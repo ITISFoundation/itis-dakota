@@ -32,4 +32,5 @@ get-dakota-src:
 		git apply ../src_patches/cstdint_dak_types.patch && \
 		git apply --whitespace=nowarn ../src_patches/adaptsampl_batch.patch
 	cd dakota/packages/external && \
-		git apply ../../../src_patches/cstdint.patch
+		git apply ../../../src_patches/cstdint.patch && \
+		git apply ../../../src_patches/trilinos_cmake_version.patch
