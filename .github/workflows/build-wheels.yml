@@ -1,4 +1,4 @@
-name: build-wheel
+name: build-wheels
 
 on:
     push:
