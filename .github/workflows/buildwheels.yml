@@ -66,7 +66,7 @@ jobs:
               with:
                   python-version: ${{ matrix.python }}
             - name: Get dakota src
-              run: make get-dakota-sr
+              run: make get-dakota-src
             - uses: pypa/cibuildwheel@v2.16
               env:
                 CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
