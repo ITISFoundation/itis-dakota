@@ -5,22 +5,8 @@ on:
     workflows: ["buildwheels"]
     types:
       - completed
-    branches:
-      - healthcheck
 
 jobs:
-  ping-success:
-    runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'success'
-    if: github.event.workflow_run.conclusion == 'success'
-    steps:
-      - run: curl -m 10 --retry 5 ${{ secrets.HEALTHCHECKS_PING_URL }}
-  ping-failure:
-    runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'failure'
-    if: github.event.workflow_run.conclusion == 'failure'
-    steps:
-      - run: curl -m 10 --retry 5 ${{ secrets.HEALTHCHECKS_PING_URL }}/fail
   keepalive-job:
     name: Keepalive Workflow
     runs-on: ubuntu-latest
@@ -29,3 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: gautamkrishnar/keepalive-workflow@v2
+  ping-success:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'success'
+    steps:
+      - run: curl -m 10 --retry 5 ${{ secrets.HEALTHCHECKS_PING_URL }}
+  ping-failure:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - run: curl -m 10 --retry 5 ${{ secrets.HEALTHCHECKS_PING_URL }}/fail
