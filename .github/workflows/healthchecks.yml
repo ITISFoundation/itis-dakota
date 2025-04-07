@@ -1,18 +1,29 @@
-name: Ping Healthchecks.io
+name: ping-healthchecks-keepalive
+
 on:
   workflow_run:
-    workflows: ['build-wheel']
-    types: [completed]
+    workflows: ['build-wheels']
+    types:
+      -completed
+
 jobs:
-  Ping-Success:
+  ping-success:
     runs-on: ubuntu-latest
     # if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'success'
     if: github.event.workflow_run.conclusion == 'success'
     steps:
       - run: curl -m 10 --retry 5 ${{ secrets.healthchecks_ping_url }}
-  Ping-Failure:
+  ping-failure:
     runs-on: ubuntu-latest
     # if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'failure'
     if: github.event.workflow_run.conclusion == 'failure'
     steps:
       - run: curl -m 10 --retry 5 ${{ secrets.healthchecks_ping_url }}/fail
+  keepalive-job:
+    name: Keepalive Workflow
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gautamkrishnar/keepalive-workflow@v2
