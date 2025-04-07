@@ -46,7 +46,6 @@ BOOST_INCLUDEDIR = "/usr/include/boost1.78"
 
 [tool.cibuildwheel.linux]
 environment-pass = [
-    "SCCACHE_GHA_ENABLED",
     "ACTIONS_CACHE_URL",
     "ACTIONS_RUNTIME_TOKEN"
 ]
@@ -54,16 +53,13 @@ before-all = [
     "yum install -y epel-release yum-utils",
     "yum-config-manager --enable epel",
     "yum makecache --refresh",
-    "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip ccache wget gsl-devel",
-    "wget --progress=dot:mega https://github.com/mozilla/sccache/releases/download/v0.8.1/sccache-v0.8.1-x86_64-unknown-linux-musl.tar.gz",
-    "tar xzvf sccache-v0.8.1-x86_64-unknown-linux-musl.tar.gz",
-    "cp sccache-v0.8.1-x86_64-unknown-linux-musl/sccache /usr/bin/",
+    "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip wget gsl-devel",
     "pip install setuptools_scm",
     "python -m setuptools_scm --force-write-version-files",
 ]
 skip = "*-musllinux_*"
-manylinux-x86_64-image="quay.io/pypa/manylinux_2_28_x86_64:2024-12-05-7ed1b2d"
-
+manylinux-x86_64-image="quay.io/pypa/manylinux_2_28_x86_64"
+manylinux-aarch64-image="quay.io/pypa/manylinux_2_28_aarch64"
 [tool.py-build-cmake.cmake]
 source_path = "."
 build_args = ["-j8"]
@@ -71,7 +67,6 @@ build_type = "Release"
 install_components = ["dakota_for_python"]
 
 [tool.py-build-cmake.cmake.options]
-CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
 DAKOTA_HAVE_HDF5 = "ON"
 HAVE_QUESO = "ON"
 DAKOTA_HAVE_GSL = "ON"
@@ -79,7 +74,6 @@ DAKOTA_PYTHON_WRAPPER = "ON"
 DAKOTA_PYTHON_DIRECT_INTERFACE = "ON"
 BUILD_SHARED_LIBS = "OFF"
 CMAKE_POSITION_INDEPENDENT_CODE = "ON"
-# CMAKE_VERBOSE_MAKEFILE = "ON"
 
 [tool.pytest.ini_options]
 addopts = "--ignore=dakota/"

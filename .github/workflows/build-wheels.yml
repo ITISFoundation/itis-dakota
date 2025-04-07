@@ -28,16 +28,21 @@ jobs:
                   DEFAULT_BUMP: patch
 
     wheels:
-        name: Build wheel on ${{ matrix.python }} ${{ matrix.os }} ${{ matrix.arch }}
-        runs-on: ${{ matrix.os }}
+        name: Build wheel on ${{ matrix.python }} ${{ matrix.arch }}
+        runs-on: ${{ matrix.github-runner }}
         strategy:
             fail-fast: true
             matrix:
-                os: [ubuntu-latest]
                 python: ['3.8', '3.9', '3.10', '3.11', '3.12']
-                arch: [x86_64]
-        env:
-            SCCACHE_GHA_ENABLED: "on"
+                arch: ['x86_64', 'arm64']
+                include:
+                    - arch: x86_64
+                      github-runner: 'ubuntu-24.04'
+                      wheel-platform: 'x86_64'
+                    - arch: arm64
+                      github-runner: 'ubuntu-24.04-arm'
+                      wheel-platform: 'aarch64'
+            
         permissions:
             contents: write
         needs: tag
@@ -56,8 +61,6 @@ jobs:
               with:
                   fetch-depth: 0
                   ref: ${{ needs.tag.outputs.new_tag }}
-            - name: Set up sccache
-              uses: mozilla-actions/sccache-action@v0.0.5
             - name: Set up Python
               uses: actions/setup-python@v5
               with:
@@ -66,7 +69,8 @@ jobs:
               run: make get-dakota-src
             - uses: pypa/cibuildwheel@v2.16
               env:
-                CIBW_BUILD: ${{ env.CIBW_PYTHON }}*${{ matrix.arch }}
+                CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
+                CIBW_ARCHS: ${{ matrix.wheel-platform }}
             - name: Run tests
               run: |
                 pip install pytest
@@ -75,7 +79,7 @@ jobs:
             - name: Upload wheels
               uses: actions/upload-artifact@v4
               with:
-                name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}-${{ matrix.arch }}
+                name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform }}
                 path: ./wheelhouse/*.whl
 
     release:
