@@ -1,4 +1,4 @@
-name: buildwheels
+name: "buildwheels"
 
 on:
     push:
