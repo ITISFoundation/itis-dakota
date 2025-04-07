@@ -1,4 +1,4 @@
-name: ping-healthchecks-keepalive
+name: healthchecks-keepalive
 
 on:
   workflow_run:
