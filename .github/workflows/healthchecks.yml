@@ -2,7 +2,7 @@ name: ping-healthchecks-keepalive
 
 on:
   workflow_run:
-    workflows: [build-wheel]
+    workflows: [build-wheels]
     types:
       - completed
     branches:
