@@ -5,8 +5,6 @@ on:
     workflows: ["buildwheels"]
     types:
       - completed
-    branches:
-      - healthcheck
 
 jobs:
   ping-success:
