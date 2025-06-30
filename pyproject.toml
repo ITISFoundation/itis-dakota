@@ -26,7 +26,7 @@ requires = [
     "h5py"
 ]
 build-backend = "build_backend.build"
-backend-path = "."
+backend-path = ["."]
 
 [tool.setuptools]
 packages = ["itis_dakota"]
