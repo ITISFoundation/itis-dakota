@@ -39,6 +39,8 @@ local_scheme = "no-local-version"
 [tool.cibuildwheel]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && ./scripts/fix_wheel.sh {dest_dir}"
 build-verbosity = 1
+build-frontend = "build[uv]"
+
 
 [tool.cibuildwheel.environment]
 BOOST_LIBRARYDIR = "/usr/lib64/boost1.78"

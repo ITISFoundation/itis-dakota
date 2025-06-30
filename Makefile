@@ -1,8 +1,8 @@
 all:
 
 wheel: cache-clean clean
+	pip install cibuildwheel --upgrade
 	CIBW_BUILD="cp312-*" CIBW_ARCHS="x86_64" cibuildwheel --platform linux
-
 test:
 	python -m pytest
 
