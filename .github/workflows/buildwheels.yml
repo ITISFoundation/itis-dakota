@@ -95,12 +95,33 @@ jobs:
           name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform }}
           path: ./wheelhouse/*.whl
 
+  release:
+    name: Create new github release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs:
+      - tag
+      - wheels
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.tag.outputs.new_tag }}
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ needs.tag.outputs.new_tag }}
+          generateReleaseNotes: true
+          artifacts: wheels-*
+
   test-pypi:
     name: Publish wheels on Test PyPI
     runs-on: ubuntu-latest
     needs:
-      - tag
-      - wheels
+      - release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     environment:
       name: testpypi
       url: https://test.pypi.org/p/itis-dakota
@@ -117,26 +138,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-
-  release:
-    name: Create new github release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs:
-      - test-pypi
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ needs.tag.outputs.new_tag }}
-      - name: Create a GitHub release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ needs.tag.outputs.new_tag }}
-          generateReleaseNotes: true
-          artifacts: wheels-*
 
   pypi:
     name: Publish wheels on PyPI
