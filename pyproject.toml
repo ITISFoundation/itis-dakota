@@ -53,6 +53,7 @@ CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 
 [tool.cibuildwheel.linux]
 before-all = [
+    "pushd /opt/_internal && tar xf static-libs-for-embedding-only.tar.xz && popd",
     "yum install -y epel-release yum-utils",
     "yum-config-manager --enable epel",
     "yum makecache --refresh",

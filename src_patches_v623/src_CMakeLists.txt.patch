@@ -1,5 +1,5 @@
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 302fb88..b24d731 100644
+index 302fb88..4fe6449 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -323,10 +323,6 @@ if(DAKOTA_PYTHON_DIRECT_INTERFACE)
@@ -20,7 +20,7 @@ index 302fb88..b24d731 100644
 -endif()
 +  # Add Python include directories and libraries to the build
 +  list(APPEND EXT_TPL_INCDIRS ${Python_INCLUDE_DIRS})
-+  list(APPEND EXT_TPL_LIBS ${Python_LIBRARIES})
++  # list(APPEND EXT_TPL_LIBS ${Python_LIBRARIES})
  
 +endif()
  
@@ -35,7 +35,16 @@ index 302fb88..b24d731 100644
  # Dakota should always depend on util (consider removing option in DakotaOptions.cmamke
  target_link_libraries(dakota_src dakota_util)
  list(APPEND EXPORT_TARGETS dakota_util)
-@@ -1123,7 +1122,7 @@ set(Dakota_LIBRARIES ${DAKOTA_LIBS} ${DAKOTA_PKG_LIBS} ${DAKOTA_EXTPROJ_LIBS}
+@@ -1050,6 +1049,8 @@ endif()
+ 
+ 
+ target_link_libraries(dakota ${DAKOTA_ALL_LIBS})
++target_link_libraries(dakota Python3::Python)
++
+ DakotaApplyMPISettings(dakota)
+ target_link_libraries(dakota_restart_util ${DAKOTA_ALL_LIBS})
+ DakotaApplyMPISettings(dakota_restart_util)
+@@ -1123,7 +1124,7 @@ set(Dakota_LIBRARIES ${DAKOTA_LIBS} ${DAKOTA_PKG_LIBS} ${DAKOTA_EXTPROJ_LIBS}
  
  # Libraries that will be on the system
  # We add Boost libraries by path/name here for Makefile.export purposes
