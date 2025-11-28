@@ -2,7 +2,7 @@ all:
 
 wheel: cache-clean clean
 	pip install cibuildwheel --upgrade
-	MAKEFLAGS="--no-print-directory" CIBW_BUILD="cp314-*" CIBW_ARCHS="aarch64" cibuildwheel --platform linux
+	MAKEFLAGS="--no-print-directory" CIBW_BUILD="cp314-*" CIBW_ARCHS="$(shell uname -m)" cibuildwheel --platform linux
 
 test:
 	python -m pytest
