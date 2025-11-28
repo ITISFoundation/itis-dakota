@@ -1,16 +1,7 @@
 diff --git a/cmake/DakotaFindPython.cmake b/cmake/DakotaFindPython.cmake
-index 2feb8c2..72d673b 100644
+index 2feb8c2..f558e82 100644
 --- a/cmake/DakotaFindPython.cmake
 +++ b/cmake/DakotaFindPython.cmake
-@@ -8,7 +8,7 @@ macro(dakota_find_python)
-     if(DAKOTA_PYTHON_DIRECT_INTERFACE OR DAKOTA_PYTHON_SURROGATES OR
- 	DAKOTA_PYTHON_WRAPPER OR DAKOTA_PYBIND11)
-       message(STATUS "Dakota enabling Python3 (Development) for direct or surrogate interface")
--      list(APPEND dakota_python_components Development)
-+      list(APPEND dakota_python_components Development.Module)
-       
-       if (DAKOTA_PYTHON_DIRECT_INTERFACE_NUMPY)
- 	if (DAKOTA_PYTHON_DIRECT_INTERFACE)
 @@ -24,6 +24,20 @@ macro(dakota_find_python)
  
      find_package(Python3 REQUIRED ${dakota_python_components})
