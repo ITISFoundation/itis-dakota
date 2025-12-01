@@ -1,5 +1,5 @@
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 302fb88..5b87051 100644
+index 302fb88..439d0b8 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -323,10 +323,6 @@ if(DAKOTA_PYTHON_DIRECT_INTERFACE)
@@ -38,7 +38,7 @@ index 302fb88..5b87051 100644
  
  
  target_link_libraries(dakota ${DAKOTA_ALL_LIBS})
-+target_link_libraries(dakota ${Python_LIBRARIES})
++target_link_libraries(dakota Threads::Threads ${Python_LIBRARIES})
 +
  DakotaApplyMPISettings(dakota)
  target_link_libraries(dakota_restart_util ${DAKOTA_ALL_LIBS})
