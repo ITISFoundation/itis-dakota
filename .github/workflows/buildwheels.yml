@@ -20,7 +20,7 @@ jobs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
       changelog: ${{ steps.tag_version.outputs.changelog }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Extract custom version from commit message
@@ -34,7 +34,7 @@ jobs:
       - name: Bump version and push tag
         id: tag_version
         if: github.ref == 'refs/heads/master'
-        uses: anothrNick/github-tag-action@1.64.0
+        uses: anothrNick/github-tag-action@1.75.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WITH_V: false
@@ -66,17 +66,17 @@ jobs:
           python_version="${{ matrix.python }}"
           cibw_python="cp${python_version/./}"
           echo "CIBW_PYTHON=$cibw_python" >> $GITHUB_ENV
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: github.ref != 'refs/heads/master'
         with:
           fetch-depth: 0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: github.ref == 'refs/heads/master'
         with:
           fetch-depth: 0
           ref: ${{ needs.tag.outputs.new_tag }}
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
@@ -84,7 +84,7 @@ jobs:
         run: make get-dakota-src
       - name: Configure sccache for cibuildwheel
         uses: mozilla-actions/sccache-action@v0.0.10
-      - uses: pypa/cibuildwheel@v3.3
+      - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
@@ -94,7 +94,7 @@ jobs:
           pip install ./wheelhouse/itis_dakota*.whl
           make test
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform
             }}
@@ -110,7 +110,7 @@ jobs:
       - tag
       - wheels
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ needs.tag.outputs.new_tag }}
@@ -134,7 +134,7 @@ jobs:
       id-token: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: wheels-*
           path: dist
@@ -157,7 +157,7 @@ jobs:
       id-token: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: wheels-*
           path: dist
