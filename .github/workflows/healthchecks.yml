@@ -2,13 +2,14 @@ name: healthchecks-keepalive
 
 on:
   workflow_run:
-    workflows: ["buildwheels"]
+    workflows: [ "buildwheels" ]
     types:
       - completed
 
 jobs:
   keepalive-job:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
     permissions:
       actions: write
     steps:
@@ -16,14 +17,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN || github.token }}
         shell: sh
-        run: gh api -X PUT "repos/ITISFoundation/itis-dakota/actions/workflows/buildwheels.yml/enable"
+        run: gh api -X PUT
+          "repos/ITISFoundation/itis-dakota/actions/workflows/buildwheels.yml/enable"
   ping-success:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'pull_request'
+    if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion ==
+      'success' && github.event.workflow_run.event != 'pull_request'
     steps:
       - run: curl -m 10 --retry 5 ${{ secrets.HEALTHCHECKS_PING_URL }}
   ping-failure:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event != 'pull_request'
+    if: github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion ==
+      'failure' && github.event.workflow_run.event != 'pull_request'
     steps:
       - run: curl -m 10 --retry 5 ${{ secrets.HEALTHCHECKS_PING_URL }}/fail
