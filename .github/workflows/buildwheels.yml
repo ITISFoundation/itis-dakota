@@ -34,8 +34,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        arch: ["x86_64", "arm64"]
+        python: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        arch: [ "x86_64", "arm64" ]
         include:
           - arch: x86_64
             github-runner: "ubuntu-24.04"
@@ -67,23 +67,26 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
+      - name: Get dakota src
+        run: make get-dakota-src
       - name: Setup ccache directory
         run: |
-          mkdir -p ${{ github.workspace }}/.ccache
-          echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> $GITHUB_ENV
+          mkdir -p ${{ runner.temp }}/ccache
       - name: Setup ccache
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ runner.os }}-${{ matrix.wheel-platform }}-${{ env.CIBW_PYTHON }}-${{ hashFiles('dakota/**/*.cpp', 'dakota/**/*.hpp', 'dakota/**/*.c', 'dakota/**/*.h') }}
+          path: ${{ runner.temp }}/ccache
+          key: ccache-${{ runner.os }}-${{ matrix.wheel-platform }}-${{ env.CIBW_PYTHON
+            }}-${{ hashFiles('dakota/**/*.cpp', 'dakota/**/*.hpp',
+            'dakota/**/*.c', 'dakota/**/*.h') }}
           restore-keys: |
             ccache-${{ runner.os }}-${{ matrix.wheel-platform }}-${{ env.CIBW_PYTHON }}
-      - name: Get dakota src
-        run: make get-dakota-src
+            ccache-${{ runner.os }}-${{ matrix.wheel-platform }}-
       - uses: pypa/cibuildwheel@v3.3
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
+          CIBW_CONTAINER_ENGINE: "docker; create_args: -v \"${{ runner.temp }}/ccache:/ccache\""
       - name: Run tests
         run: |
           pip install pytest
@@ -92,7 +95,8 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform }}
+          name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform
+            }}
           path: ./wheelhouse/*.whl
 
   release:

@@ -1,8 +1,17 @@
+VENV := .venv
+VENV_BIN := $(VENV)/bin
+
+$(VENV):
+	python3 -m venv $(VENV)
+	$(VENV_BIN)/pip install --upgrade pip cibuildwheel
+
 all:
 
-wheel: cache-clean clean
-	pip install cibuildwheel --upgrade
-	MAKEFLAGS="--no-print-directory" CIBW_BUILD="cp314-*" CIBW_ARCHS="$(shell uname -m)" cibuildwheel --platform linux
+CCACHE_HOST_DIR := $(HOME)/.cache/itis-dakota-ccache
+
+wheel: cache-clean clean $(VENV)
+	mkdir -p $(CCACHE_HOST_DIR)
+	MAKEFLAGS="--no-print-directory" CIBW_BUILD="cp314-*" CIBW_ARCHS="$(shell uname -m)" CIBW_CONTAINER_ENGINE='docker; create_args: -v "$(CCACHE_HOST_DIR):/ccache"' $(VENV_BIN)/cibuildwheel --platform linux
 
 test:
 	python -m pytest

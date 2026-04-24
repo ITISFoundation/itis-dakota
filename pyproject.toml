@@ -50,6 +50,8 @@ BOOST_LIBRARYDIR = "/usr/lib64/boost1.78"
 BOOST_INCLUDEDIR = "/usr/include/boost1.78"
 CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
+CCACHE_DIR = "/ccache"
+CCACHE_UMASK = "000"
 
 [tool.cibuildwheel.linux]
 before-all = [
