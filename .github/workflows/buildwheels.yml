@@ -78,6 +78,13 @@ jobs:
           cache: "pip"
       - name: Get dakota src
         run: make get-dakota-src
+      - name: Configure sccache for cibuildwheel
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
       - uses: pypa/cibuildwheel@v3.3
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
