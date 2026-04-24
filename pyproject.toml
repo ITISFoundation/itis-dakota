@@ -50,6 +50,7 @@ BOOST_LIBRARYDIR = "/usr/lib64/boost1.78"
 BOOST_INCLUDEDIR = "/usr/include/boost1.78"
 CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
+SCCACHE_GHA_ENABLED = "true"
 CCACHE_DIR = "/ccache"
 CCACHE_UMASK = "000"
 
@@ -60,6 +61,7 @@ before-all = [
     "yum-config-manager --enable epel",
     "yum makecache --refresh",
     "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip wget gsl-devel ccache",
+    "if [ -n \"${ACTIONS_CACHE_URL}\" ]; then SCCACHE_V=v0.14.0; ARCH=$(uname -m); wget -q https://github.com/mozilla/sccache/releases/download/${SCCACHE_V}/sccache-${SCCACHE_V}-${ARCH}-unknown-linux-musl.tar.gz -O /tmp/sccache.tar.gz && tar xf /tmp/sccache.tar.gz -C /tmp && cp /tmp/sccache-${SCCACHE_V}-${ARCH}-unknown-linux-musl/sccache /usr/local/bin/sccache && chmod +x /usr/local/bin/sccache && ln -sf /usr/local/bin/sccache /usr/local/bin/ccache && rm -rf /tmp/sccache*; fi",
     "pip install setuptools_scm",
     "python -m setuptools_scm --force-write-version-files",
 ]

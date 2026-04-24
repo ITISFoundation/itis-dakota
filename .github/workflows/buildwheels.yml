@@ -69,24 +69,10 @@ jobs:
           cache: "pip"
       - name: Get dakota src
         run: make get-dakota-src
-      - name: Setup ccache directory
-        run: |
-          mkdir -p ${{ runner.temp }}/ccache
-      - name: Setup ccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/ccache
-          key: ccache-${{ runner.os }}-${{ matrix.wheel-platform }}-${{ env.CIBW_PYTHON
-            }}-${{ hashFiles('dakota/**/*.cpp', 'dakota/**/*.hpp',
-            'dakota/**/*.c', 'dakota/**/*.h') }}
-          restore-keys: |
-            ccache-${{ runner.os }}-${{ matrix.wheel-platform }}-${{ env.CIBW_PYTHON }}
-            ccache-${{ runner.os }}-${{ matrix.wheel-platform }}-
       - uses: pypa/cibuildwheel@v3.3
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
-          CIBW_CONTAINER_ENGINE: "docker; create_args: -v \"${{ runner.temp }}/ccache:/ccache\""
       - name: Run tests
         run: |
           pip install pytest
