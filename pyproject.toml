@@ -40,7 +40,7 @@ version_file = "itis_dakota/_version.py"
 local_scheme = "no-local-version"
 
 [tool.cibuildwheel]
-repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && ./scripts/fix_wheel.sh {dest_dir}"
+repair-wheel-command = "./scripts/repair_wheel.sh {dest_dir} {wheel}"
 build-verbosity = 1
 build-frontend = "build[uv]"
 
