@@ -65,7 +65,6 @@ before-all = [
     "python -m setuptools_scm --force-write-version-files",
 ]
 environment-pass = [
-    "ACTIONS_CACHE_URL",
     "ACTIONS_RESULTS_URL",
     "ACTIONS_RUNTIME_TOKEN"
 ]
