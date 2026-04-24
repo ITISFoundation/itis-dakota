@@ -78,10 +78,6 @@ build_args = ["-j8"]
 build_type = "Release"
 install_components = ["dakota_for_python"]
 
-[tool.py-build-cmake.cmake.env]
-CMAKE_C_COMPILER_LAUNCHER = "ccache"
-CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
-
 [tool.py-build-cmake.cmake.options]
 DAKOTA_HAVE_HDF5 = "ON"
 HAVE_QUESO = "ON"
