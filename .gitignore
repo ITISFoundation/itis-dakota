@@ -11,3 +11,4 @@ itis_dakota/py.typed
 /wheel
 /.venv
 /make.log
+/tmp

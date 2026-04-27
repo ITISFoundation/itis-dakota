@@ -205,6 +205,10 @@ fix_install_names() {
                 newname="@loader_path/../../.dylibs/${oldname##*/.dylibs/}"
                 install_name_tool -change "${oldname}" "${newname}" "${f}"
                 ;;
+            @loader_path/../../../../itis_dakota/.dylibs/*)
+                newname="@loader_path/../../itis_dakota/.dylibs/${oldname##*/.dylibs/}"
+                install_name_tool -change "${oldname}" "${newname}" "${f}"
+                ;;
         esac
     done
 }
