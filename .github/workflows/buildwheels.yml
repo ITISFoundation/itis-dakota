@@ -110,16 +110,10 @@ jobs:
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
-          # Enable sccache only in CI (where the GHA cache backend is
-          # available). CIBW_ENVIRONMENT_LINUX is used instead of the
-          # global CIBW_ENVIRONMENT so it doesn't override the macOS
-          # TOML-based environment (Homebrew paths, FC, PATH, etc.).
-          CIBW_ENVIRONMENT_LINUX: >-
-            CMAKE_C_COMPILER_LAUNCHER=sccache
-            CMAKE_CXX_COMPILER_LAUNCHER=sccache SCCACHE_GHA_ENABLED=true
-          # On macOS (no container), env vars from the runner are inherited.
-          # sccache compiler launchers are set in pyproject.toml; we only
-          # need to enable the GHA cache backend here.
+          # sccache compiler launchers are configured in pyproject.toml
+          # (both linux and macos sections). The GHA cache backend is
+          # enabled here and passed into the Linux container via
+          # environment-pass in pyproject.toml.
           SCCACHE_GHA_ENABLED: "true"
       - name: Run tests
         run: |

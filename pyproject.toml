@@ -43,11 +43,10 @@ local_scheme = "no-local-version"
 build-verbosity = 1
 build-frontend = "build[uv]"
 
-# NOTE: We deliberately do NOT set CMAKE_*_COMPILER_LAUNCHER or
-# SCCACHE_GHA_ENABLED here. They are only meaningful inside GitHub Actions
-# (and would break local builds, since sccache's GHA cache backend requires
-# the GHA cache service env vars). The CI workflow injects them via
-# CIBW_ENVIRONMENT for runs on GitHub.
+# NOTE: CMAKE_*_COMPILER_LAUNCHER and sccache vars are set in the
+# per-platform [tool.cibuildwheel.{linux,macos}.environment] sections.
+# SCCACHE_GHA_ENABLED is passed into the Linux container via
+# environment-pass; on macOS it is inherited from the runner env.
 
 # ---------------------------------------------------------------------------
 # Linux
@@ -68,7 +67,8 @@ before-all = [
 environment-pass = [
     "ACTIONS_RESULTS_URL",
     "ACTIONS_RUNTIME_TOKEN",
-    "ACTIONS_CACHE_SERVICE_V2"
+    "ACTIONS_CACHE_SERVICE_V2",
+    "SCCACHE_GHA_ENABLED"
 ]
 skip = "*-musllinux_*"
 manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64"
@@ -77,6 +77,8 @@ manylinux-aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64"
 [tool.cibuildwheel.linux.environment]
 BOOST_LIBRARYDIR = "/usr/lib64/boost1.78"
 BOOST_INCLUDEDIR = "/usr/include/boost1.78"
+CMAKE_C_COMPILER_LAUNCHER = "sccache"
+CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
 
 # ---------------------------------------------------------------------------
 # macOS
@@ -142,12 +144,13 @@ DAKOTA_PYTHON_WRAPPER = "ON"
 DAKOTA_PYTHON_DIRECT_INTERFACE = "ON"
 BUILD_SHARED_LIBS = "OFF"
 CMAKE_POSITION_INDEPENDENT_CODE = "ON"
-# Boost 1.90's BoostConfig.cmake is broken on Homebrew (missing
-# per-component configs like boost_systemConfig.cmake). Force CMake
-# to use the traditional FindBoost module (header/library detection).
-Boost_NO_BOOST_CMAKE = "ON"
 CXX_FLAGS = "-w"
 CMAKE_CXX_FLAGS = "-Wno-psabi"
+
+# Homebrew Boost 1.90's BoostConfig.cmake is broken (missing
+# per-component configs). Force the legacy FindBoost module on macOS.
+[tool.py-build-cmake.mac.cmake.options]
+Boost_NO_BOOST_CMAKE = "ON"
 
 [tool.pytest.ini_options]
 addopts = "--ignore=dakota/"
