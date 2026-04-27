@@ -129,9 +129,17 @@ def _find_python_lib():
     ldlib = sysconfig.get_config_var("LDLIBRARY") or ""
     # Framework builds put the binary at e.g.
     # .../Python.framework/Versions/3.12/Python
+    # IMPORTANT: use the versioned path (Versions/X.Y/Python), NOT the
+    # unversioned /Python.framework/Python symlink, which resolves to
+    # Versions/Current and may point to a different Python version.
     fwprefix = sysconfig.get_config_var("PYTHONFRAMEWORKPREFIX") or ""
     fwdir = sysconfig.get_config_var("PYTHONFRAMEWORKDIR") or ""
     if fwprefix and fwdir and fwdir != "no-framework":
+        ver = "%d.%d" % (sys.version_info.major, sys.version_info.minor)
+        candidate = os.path.join(fwprefix, fwdir, "Versions", ver, "Python")
+        if os.path.isfile(candidate):
+            return candidate
+        # Fallback to unversioned path (single-version installs)
         candidate = os.path.join(fwprefix, fwdir, "Python")
         if os.path.isfile(candidate):
             return candidate
