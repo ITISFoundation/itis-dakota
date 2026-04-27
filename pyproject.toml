@@ -110,10 +110,11 @@ HDF5_ROOT = "$(brew --prefix hdf5)"
 GSL_ROOT_DIR = "$(brew --prefix gsl)"
 LAPACK_DIR = "$(brew --prefix lapack)"
 # gfortran is required by Dakota's TPLs (BLAS/LAPACK linkage). gfortran
-# is shipped by the Homebrew `gcc` formula.
-FC = "gfortran"
-# Ensure Homebrew's bin is on PATH so CMake can find gfortran, gcc, etc.
-# inside cibuildwheel's build-isolation environment.
+# is shipped by the Homebrew `gcc` formula. Use full path so CMake can
+# find it even if Homebrew's bin isn't on PATH in the build isolation.
+FC = "$(brew --prefix)/bin/gfortran"
+# Ensure Homebrew's bin is on PATH so CMake (and other tools) can find
+# Homebrew-installed binaries inside cibuildwheel's build-isolation env.
 PATH = "$(brew --prefix)/bin:$PATH"
 # NOTE: We deliberately do NOT pin MACOSX_DEPLOYMENT_TARGET here. Homebrew
 # bottles are built for the runner's macOS version, so forcing an older
