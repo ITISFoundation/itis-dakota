@@ -52,32 +52,21 @@ jobs:
           DEFAULT_BUMP: patch
           CUSTOM_TAG: ${{ steps.custom_version.outputs.tag }}
 
-  wheels:
-    name: Build wheel on ${{ matrix.os }} ${{ matrix.python }} ${{ matrix.arch }}
+  wheels-linux:
+    name: Build wheel on linux ${{ matrix.python }} ${{ matrix.arch }}
     runs-on: ${{ matrix.github-runner }}
     strategy:
       fail-fast: false
       matrix:
         python: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
-        os: [ "linux", "macos" ]
         arch: [ "x86_64", "arm64" ]
         include:
-          - os: linux
-            arch: x86_64
+          - arch: x86_64
             github-runner: "ubuntu-24.04"
             wheel-platform: "x86_64"
-          - os: linux
-            arch: arm64
+          - arch: arm64
             github-runner: "ubuntu-24.04-arm"
             wheel-platform: "aarch64"
-          - os: macos
-            arch: x86_64
-            github-runner: "macos-15-intel" # Intel runner
-            wheel-platform: "x86_64"
-          - os: macos
-            arch: arm64
-            github-runner: "macos-14" # Apple Silicon runner
-            wheel-platform: "arm64"
 
     permissions:
       contents: write
@@ -112,39 +101,15 @@ jobs:
           if [ ! -d dakota/.git ]; then
             make get-dakota-src
           fi
-      - name: Cache Homebrew packages
-        if: matrix.os == 'macos'
-        uses: actions/cache@v5
-        with:
-          path: ~/Library/Caches/Homebrew/downloads
-          key: brew-${{ matrix.arch }}-${{ hashFiles('Makefile') }}
-          restore-keys: brew-${{ matrix.arch }}-
-      - name: Install macOS build dependencies (Homebrew)
-        if: matrix.os == 'macos'
-        run: make brew-deps
-      - name: Set MACOSX_DEPLOYMENT_TARGET from runner
-        if: matrix.os == 'macos'
-        # cibuildwheel's default (10.13/11.0) is older than the Homebrew
-        # bottles installed on the runner, which makes delocate refuse to
-        # bundle them. Pin to the runner's major macOS version.
-        run: |
-          MAC_MAJOR=$(sw_vers -productVersion | cut -d. -f1).0
-          echo "MACOSX_DEPLOYMENT_TARGET=$MAC_MAJOR" >> "$GITHUB_ENV"
       - name: Configure sccache for cibuildwheel
         uses: mozilla-actions/sccache-action@v0.0.10
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
-          # sccache compiler launchers are configured in pyproject.toml
-          # (both linux and macos sections). The GHA cache backend is
-          # enabled here and passed into the Linux container via
-          # environment-pass in pyproject.toml.
           SCCACHE_GHA_ENABLED: "true"
-          # Scope sccache cache per OS/arch to avoid conflicts and write
-          # errors when multiple jobs compete for the same cache key.
-          SCCACHE_GHA_CACHE_TO: sccache-${{ matrix.os }}-${{ matrix.arch }}
-          SCCACHE_GHA_CACHE_FROM: sccache-${{ matrix.os }}-${{ matrix.arch }}
+          SCCACHE_GHA_CACHE_TO: sccache-linux-${{ matrix.arch }}
+          SCCACHE_GHA_CACHE_FROM: sccache-linux-${{ matrix.arch }}
       - name: Run tests
         run: |
           pip install pytest
@@ -153,13 +118,92 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
-          name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform
-            }}
+          name: wheels-linux-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform }}
+          path: ./wheelhouse/*.whl
+
+  wheels-macos:
+    name: Build wheels on macos ${{ matrix.arch }}
+    runs-on: ${{ matrix.github-runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            github-runner: "macos-15-intel"
+            wheel-platform: "x86_64"
+          - arch: arm64
+            github-runner: "macos-14"
+            wheel-platform: "arm64"
+
+    permissions:
+      contents: write
+    needs: tag
+    steps:
+      - uses: actions/checkout@v6
+        if: github.ref != 'refs/heads/master'
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v6
+        if: github.ref == 'refs/heads/master'
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.tag.outputs.new_tag }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: "pip"
+      - name: Cache Dakota source
+        uses: actions/cache@v5
+        with:
+          path: dakota
+          key: dakota-src-v6.23.0-${{ hashFiles('src_patches_v623/*.patch') }}
+      - name: Get dakota src
+        run: |
+          if [ ! -d dakota/.git ]; then
+            make get-dakota-src
+          fi
+      - name: Cache Homebrew packages
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: brew-${{ matrix.arch }}-${{ hashFiles('Makefile') }}
+          restore-keys: brew-${{ matrix.arch }}-
+      - name: Install macOS build dependencies (Homebrew)
+        run: make brew-deps
+      - name: Set MACOSX_DEPLOYMENT_TARGET from runner
+        # cibuildwheel's default (10.13/11.0) is older than the Homebrew
+        # bottles installed on the runner, which makes delocate refuse to
+        # bundle them. Pin to the runner's major macOS version.
+        run: |
+          MAC_MAJOR=$(sw_vers -productVersion | cut -d. -f1).0
+          echo "MACOSX_DEPLOYMENT_TARGET=$MAC_MAJOR" >> "$GITHUB_ENV"
+      - name: Configure sccache for cibuildwheel
+        uses: mozilla-actions/sccache-action@v0.0.10
+      # Build all 5 Python versions sequentially on this single runner.
+      # sccache caches ~1200/1458 C++ objects across Python versions
+      # (only ~260 Python-dependent files recompile each time).
+      - uses: pypa/cibuildwheel@v3.4.1
+        env:
+          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+          CIBW_ARCHS: ${{ matrix.wheel-platform }}
+          SCCACHE_GHA_ENABLED: "true"
+          SCCACHE_GHA_CACHE_TO: sccache-macos-${{ matrix.arch }}
+          SCCACHE_GHA_CACHE_FROM: sccache-macos-${{ matrix.arch }}
+      - name: Run tests
+        run: |
+          pip install pytest
+          pip install ./wheelhouse/itis_dakota*cp314*.whl
+          pytest
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheels-macos-${{ matrix.wheel-platform }}
           path: ./wheelhouse/*.whl
 
   test:
     name: Test wheel on ${{ matrix.os }} ${{ matrix.arch }}
-    needs: wheels
+    needs: [ wheels-linux, wheels-macos ]
     runs-on: ${{ matrix.github-runner }}
     strategy:
       fail-fast: false
@@ -176,11 +220,11 @@ jobs:
           - os: macos
             arch: x86_64
             github-runner: "macos-15-intel"
-            artifact: "wheels-macos-cp314_x86_64"
+            artifact: "wheels-macos-x86_64"
           - os: macos
             arch: arm64
             github-runner: "macos-14"
-            artifact: "wheels-macos-cp314_arm64"
+            artifact: "wheels-macos-arm64"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -193,7 +237,7 @@ jobs:
       - name: Install wheel and run tests
         run: |
           pip install pytest
-          pip install wheelhouse/*.whl
+          pip install wheelhouse/*cp314*.whl
           pytest
 
   release:
