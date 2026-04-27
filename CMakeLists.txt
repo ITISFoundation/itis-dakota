@@ -12,10 +12,25 @@ add_compile_options(-w)
 add_compile_definitions(BOOST_BIND_GLOBAL_PLACEHOLDERS)
 add_subdirectory(dakota EXCLUDE_FROM_ALL)
 
-# Fix QUESO_BUILD_DATE to a constant string so __DATE__/__TIME__ don't
-# change the preprocessed output on every build, allowing sccache to
-# cache QUESO object files across rebuilds (~150 files).
-target_compile_definitions(queso PRIVATE QUESO_BUILD_DATE="Dakota 6.23")
+# Freeze __DATE__, __TIME__, and QUESO_BUILD_DATE to constant strings so
+# sccache can cache QUESO object files across rebuilds (~150 files).
+# Without this, every QUESO .C file expands __DATE__/__TIME__ via assert
+# macros in asserts.h / Defines.h, producing unique preprocessed output
+# on every build and defeating sccache's preprocessor-mode hashing.
+target_compile_options(queso PRIVATE -Wno-builtin-macro-redefined)
+target_compile_definitions(queso PRIVATE
+  __DATE__="Dakota 6.23"
+  __TIME__="00:00:00"
+  QUESO_BUILD_DATE="Dakota 6.23"
+)
+
+# Same for dakota_src: DakotaBuildInfo.hpp uses __DATE__/__TIME__ inline,
+# affecting ~9 files (OutputManager, RestartVersion, dakota_python, etc.)
+target_compile_options(dakota_src PRIVATE -Wno-builtin-macro-redefined)
+target_compile_definitions(dakota_src PRIVATE
+  __DATE__="Dakota 6.23"
+  __TIME__="00:00:00"
+)
 
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
 
