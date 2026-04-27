@@ -61,7 +61,7 @@ jobs:
             wheel-platform: "aarch64"
           - os: macos
             arch: x86_64
-            github-runner: "macos-13" # Intel runner
+            github-runner: "macos-15-intel" # Intel runner
             wheel-platform: "x86_64"
           - os: macos
             arch: arm64
