@@ -128,6 +128,45 @@ jobs:
             }}
           path: ./wheelhouse/*.whl
 
+  test:
+    name: Test wheel on ${{ matrix.os }} ${{ matrix.arch }}
+    needs: wheels
+    runs-on: ${{ matrix.github-runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: x86_64
+            github-runner: "ubuntu-24.04"
+            artifact: "wheels-linux-cp314_x86_64"
+          - os: linux
+            arch: arm64
+            github-runner: "ubuntu-24.04-arm"
+            artifact: "wheels-linux-cp314_aarch64"
+          - os: macos
+            arch: x86_64
+            github-runner: "macos-15-intel"
+            artifact: "wheels-macos-cp314_x86_64"
+          - os: macos
+            arch: arm64
+            github-runner: "macos-14"
+            artifact: "wheels-macos-cp314_arm64"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: wheelhouse
+      - name: Install wheel and run tests
+        run: |
+          pip install pytest
+          pip install wheelhouse/*.whl
+          pytest
+
   release:
     name: Create new github release
     runs-on: ubuntu-latest
@@ -136,7 +175,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs:
       - tag
-      - wheels
+      - test
     steps:
       - uses: actions/checkout@v6
         with:
