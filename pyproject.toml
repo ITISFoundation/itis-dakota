@@ -159,4 +159,4 @@ CMAKE_CXX_FLAGS = "-Wno-psabi"
 Boost_NO_BOOST_CMAKE = "ON"
 
 [tool.pytest.ini_options]
-addopts = "--ignore=dakota/"
+addopts = "--ignore=dakota/ --ignore=tmp/"
