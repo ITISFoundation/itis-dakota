@@ -260,7 +260,7 @@ done < <(find "${WORKDIR}" -type f)
 # We must update the RECORD file because we changed file contents.
 # Easiest: use `wheel pack`.
 if ! python3 -c "import wheel" 2>/dev/null; then
-    pip install --quiet wheel
+    python3 -m pip install --quiet wheel
 fi
 python3 -m wheel pack --dest-dir "${DEST_DIR}" "${WORKDIR}"
 
