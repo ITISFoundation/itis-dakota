@@ -89,7 +89,7 @@ repair-wheel-command = "./scripts/repair_wheel_macos.sh {dest_dir} {wheel} {delo
 # gcc/gfortran, ccache, cmake, ninja) to already be installed. CI installs
 # them as an explicit step; locally install them once with `make brew-deps`.
 before-all = [
-    "pip install setuptools_scm delocate",
+    "pip install setuptools_scm delocate uv",
     "python -m setuptools_scm --force-write-version-files",
 ]
 environment-pass = [
