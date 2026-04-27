@@ -42,7 +42,7 @@ wheel-macos: cache-clean clean $(VENV)
 
 # One-time install of macOS build dependencies via Homebrew.
 brew-deps:
-	brew install boost hdf5 gsl lapack ccache sccache cmake ninja gcc
+	HOMEBREW_NO_INSTALL_UPGRADE=1 brew install --quiet boost hdf5 gsl lapack ccache sccache cmake ninja gcc 2>/dev/null || true
 	# Homebrew's gcc formula does NOT create an unversioned `gfortran`
 	# symlink (only versioned ones like gfortran-15). Create one so
 	# FC=$(brew --prefix)/bin/gfortran works for CMake's Fortran probe.
