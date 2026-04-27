@@ -43,13 +43,13 @@ wheel-macos: cache-clean clean $(VENV)
 # One-time install of macOS build dependencies via Homebrew.
 brew-deps:
 	brew install boost hdf5 gsl lapack ccache sccache cmake ninja gcc
-	# `brew install` is a no-op on already-installed formulae and does NOT
-	# (re-)create the unversioned `gfortran` symlink. Force-link gcc so
-	# `$(brew --prefix)/bin/gfortran` exists for CMake's Fortran probe.
-	brew link --overwrite --force gcc || true
-	@echo "gfortran binaries available:"
-	@ls -la $$(brew --prefix)/bin/gfortran* 2>&1 || true
-	@$$(brew --prefix)/bin/gfortran --version 2>&1 || true
+	# Homebrew's gcc formula does NOT create an unversioned `gfortran`
+	# symlink (only versioned ones like gfortran-15). Create one so
+	# FC=$(brew --prefix)/bin/gfortran works for CMake's Fortran probe.
+	ln -sf $$(ls $$(brew --prefix)/bin/gfortran-* | sort -V | tail -1) $$(brew --prefix)/bin/gfortran
+	@echo "gfortran symlink:"
+	@ls -la $$(brew --prefix)/bin/gfortran
+	@$$(brew --prefix)/bin/gfortran --version
 
 # Build wheel only if no wheel present in wheelhouse/
 wheelhouse/.built:
