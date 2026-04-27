@@ -120,16 +120,7 @@ jobs:
         run: |
           pip install pytest
           pip install ./wheelhouse/itis_dakota*.whl
-          # On macOS the standalone `dakota` CLI binary cannot be made to
-          # find the user's Python framework reliably across pyenv /
-          # framework / conda installs (the wheel does not bundle a Python
-          # interpreter). Only the `import dakota.environment` interface is
-          # supported on macOS; skip the CLI test module there.
-          if [ "${{ matrix.os }}" = "macos" ]; then
-            pytest --ignore=tests/test_dakota_executable.py
-          else
-            pytest
-          fi
+          pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:

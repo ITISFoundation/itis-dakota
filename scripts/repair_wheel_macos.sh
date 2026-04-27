@@ -63,16 +63,130 @@ unzip -q "${DELOCATED_WHEEL}" -d "${WORKDIR}"
 # catch this, but be defensive.
 rm -f "${WORKDIR}/.dylibs/Python"
 
-# NOTE on the standalone `dakota` CLI binary:
-# py-build-cmake places the CLI at <dist>.data/scripts/dakota which installs
-# to <venv>/bin/dakota. On macOS this binary links against the Python
-# framework via a bare `Python` install_name (delocate rewrites it to point
-# inside .dylibs/, but we exclude Python from bundling — a wheel must not
-# ship its own interpreter). Making the CLI find the user's Python at
-# runtime requires per-environment library path detection (framework vs
-# pyenv vs conda) that is out of scope for the wheel-repair step. The CLI
-# is therefore expected to fail at runtime on most macOS setups; the
-# `import dakota.environment` Python interface is the supported usage.
+# Step 2b: relocate the standalone `dakota` CLI binary.
+#
+# py-build-cmake puts the binary at <dist>.data/scripts/dakota which installs
+# to <venv>/bin/dakota. From that location the relative path to
+# <site-packages>/.dylibs/ varies by Python version and is not predictable.
+# The binary also needs libpython at runtime (Dakota embeds a Python
+# interpreter for its PYTHON_DIRECT_INTERFACE).
+#
+# Solution: move the real binary into
+#   <dist>.data/platlib/itis_dakota/.bin/dakota
+# (which installs to <site-packages>/itis_dakota/.bin/dakota — a fixed
+# relative location to <site-packages>/.dylibs/). Then replace the script
+# entry point with a tiny Python wrapper that:
+#   1) Locates the real binary via the itis_dakota package
+#   2) Discovers libpython via sysconfig and injects it into
+#      DYLD_LIBRARY_PATH so the binary can find the interpreter at runtime
+#   3) exec's the real binary
+
+SCRIPT_DAKOTA=$(find "${WORKDIR}" -type f -path "*.data/scripts/dakota" | head -1)
+if [ -n "${SCRIPT_DAKOTA}" ]; then
+    PLATLIB_DIR=$(find "${WORKDIR}" -type d -path "*.data/platlib" | head -1)
+    if [ -z "${PLATLIB_DIR}" ]; then
+        echo "ERROR: cannot locate .data/platlib in wheel" >&2
+        exit 1
+    fi
+    BIN_DEST_DIR="${PLATLIB_DIR}/itis_dakota/.bin"
+    mkdir -p "${BIN_DEST_DIR}"
+    mv "${SCRIPT_DAKOTA}" "${BIN_DEST_DIR}/dakota"
+    chmod 755 "${BIN_DEST_DIR}/dakota"
+
+    # Rewrite the relocated binary's @loader_path references:
+    # It was previously at .data/scripts/ (2 levels deep from wheel root),
+    # so delocate wrote @loader_path/../../.dylibs/. Now it lives at
+    # .data/platlib/itis_dakota/.bin/ (4 levels deep from wheel root), but
+    # after install it will be at itis_dakota/.bin/ (2 levels from
+    # site-packages root, where .dylibs/ lives). So @loader_path/../../.dylibs/
+    # is the correct installed path — no change needed! Leave the binary's
+    # install names as-is.
+
+    # Write the Python wrapper script.
+    cat > "${SCRIPT_DAKOTA}" <<'PYEOF'
+#!/usr/bin/env python3
+"""Wrapper that exec's the bundled dakota binary inside itis_dakota.
+
+Created by scripts/repair_wheel_macos.sh during wheel repair.
+On macOS the dakota binary dynamically links against "Python" (the macOS
+framework name). This wrapper:
+  1) Locates the real binary bundled inside the itis_dakota package.
+  2) Discovers the host Python's shared library via sysconfig.
+  3) Creates a directory containing a "Python" symlink that points to the
+     real libpython (works for pyenv, Homebrew, python.org framework, etc.).
+  4) Injects that directory plus .dylibs/ into DYLD_LIBRARY_PATH.
+  5) exec's the real binary.
+"""
+import os
+import sys
+import sysconfig
+import tempfile
+
+
+def _find_python_lib():
+    """Return path to the Python shared library / framework binary."""
+    libdir = sysconfig.get_config_var("LIBDIR") or ""
+    ldlib = sysconfig.get_config_var("LDLIBRARY") or ""
+    # Framework builds put the binary at e.g.
+    # .../Python.framework/Versions/3.12/Python
+    fwprefix = sysconfig.get_config_var("PYTHONFRAMEWORKPREFIX") or ""
+    fwdir = sysconfig.get_config_var("PYTHONFRAMEWORKDIR") or ""
+    if fwprefix and fwdir and fwdir != "no-framework":
+        candidate = os.path.join(fwprefix, fwdir, "Python")
+        if os.path.isfile(candidate):
+            return candidate
+    # Non-framework (pyenv, Homebrew, etc.): libpython3.X.dylib
+    candidate = os.path.join(libdir, ldlib)
+    if os.path.isfile(candidate):
+        return candidate
+    return None
+
+
+def _main():
+    import itis_dakota
+    pkg_dir = os.path.dirname(os.path.abspath(itis_dakota.__file__))
+    binary = os.path.join(pkg_dir, ".bin", "dakota")
+    if not os.path.isfile(binary):
+        sys.stderr.write(
+            "itis_dakota: bundled dakota binary not found at %s\n" % binary
+        )
+        sys.exit(1)
+
+    # .dylibs/ lives at <site-packages>/.dylibs/
+    dylibs_dir = os.path.normpath(os.path.join(pkg_dir, "..", ".dylibs"))
+
+    # The binary links against the bare name "Python". Create a temp
+    # directory with a "Python" symlink pointing at the real library so
+    # DYLD_LIBRARY_PATH can resolve it.
+    python_lib = _find_python_lib()
+    extra_paths = []
+    if os.path.isdir(dylibs_dir):
+        extra_paths.append(dylibs_dir)
+
+    tmpdir = None
+    if python_lib:
+        tmpdir = tempfile.mkdtemp(prefix="itis_dakota_")
+        link_path = os.path.join(tmpdir, "Python")
+        os.symlink(python_lib, link_path)
+        extra_paths.insert(0, tmpdir)
+
+    current = os.environ.get("DYLD_LIBRARY_PATH", "")
+    if extra_paths:
+        new_val = ":".join(extra_paths)
+        if current:
+            new_val = new_val + ":" + current
+        os.environ["DYLD_LIBRARY_PATH"] = new_val
+
+    # exec replaces this process; the tmpdir will be cleaned up by the OS
+    # when the process exits (it only contains a single symlink).
+    os.execv(binary, [binary] + sys.argv[1:])
+
+
+if __name__ == "__main__":
+    _main()
+PYEOF
+    chmod 755 "${SCRIPT_DAKOTA}"
+fi
 
 # Step 3: rewrite install names to account for the .data/platlib indirection
 # (see header comment). Replace any occurrence of
@@ -100,11 +214,26 @@ fix_install_names() {
 PLATLIB_ROOT=$(find "${WORKDIR}" -type d -path "*.data/platlib" | head -1)
 if [ -n "${PLATLIB_ROOT}" ]; then
     while IFS= read -r f; do
-        # Mach-O check via `file` magic — skip pure-python files.
         if file "${f}" | grep -q 'Mach-O'; then
             fix_install_names "${f}"
         fi
     done < <(find "${PLATLIB_ROOT}" -type f)
+fi
+
+# Also rewrite the Python install_name in the relocated dakota binary so it
+# uses @rpath instead of a hardcoded path. The wrapper script sets
+# DYLD_LIBRARY_PATH, but @rpath provides an additional fallback.
+RELOCATED_DAKOTA=$(find "${WORKDIR}" -type f -path "*/itis_dakota/.bin/dakota" | head -1)
+if [ -n "${RELOCATED_DAKOTA}" ]; then
+    # Rewrite any @loader_path/.../.dylibs/Python reference to just "Python"
+    # (bare name — resolved at runtime via DYLD_LIBRARY_PATH set by wrapper).
+    otool -L "${RELOCATED_DAKOTA}" 2>/dev/null | awk 'NR>1 {print $1}' | while read -r oldname; do
+        case "${oldname}" in
+            */.dylibs/Python|*/Python.framework/*)
+                install_name_tool -change "${oldname}" "Python" "${RELOCATED_DAKOTA}"
+                ;;
+        esac
+    done
 fi
 
 # Step 4: re-codesign every Mach-O file we modified. macOS requires an
