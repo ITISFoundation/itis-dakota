@@ -116,6 +116,10 @@ FC = "$(brew --prefix)/bin/gfortran"
 # Ensure Homebrew's bin is on PATH so CMake (and other tools) can find
 # Homebrew-installed binaries inside cibuildwheel's build-isolation env.
 PATH = "$(brew --prefix)/bin:$PATH"
+# sccache compiler launchers — sccache auto-detects the GHA cache backend
+# when SCCACHE_GHA_ENABLED=true (set by CI), otherwise uses local disk cache.
+CMAKE_C_COMPILER_LAUNCHER = "sccache"
+CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
 # NOTE: We deliberately do NOT pin MACOSX_DEPLOYMENT_TARGET here. Homebrew
 # bottles are built for the runner's macOS version, so forcing an older
 # deployment target than the bottles causes delocate to refuse the wheel
