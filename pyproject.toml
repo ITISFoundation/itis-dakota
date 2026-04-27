@@ -40,19 +40,20 @@ version_file = "itis_dakota/_version.py"
 local_scheme = "no-local-version"
 
 [tool.cibuildwheel]
-repair-wheel-command = "./scripts/repair_wheel.sh {dest_dir} {wheel}"
 build-verbosity = 1
 build-frontend = "build[uv]"
 
+# NOTE: We deliberately do NOT set CMAKE_*_COMPILER_LAUNCHER or
+# SCCACHE_GHA_ENABLED here. They are only meaningful inside GitHub Actions
+# (and would break local builds, since sccache's GHA cache backend requires
+# the GHA cache service env vars). The CI workflow injects them via
+# CIBW_ENVIRONMENT for runs on GitHub.
 
-[tool.cibuildwheel.environment]
-BOOST_LIBRARYDIR = "/usr/lib64/boost1.78"
-BOOST_INCLUDEDIR = "/usr/include/boost1.78"
-CMAKE_C_COMPILER_LAUNCHER = "sccache"
-CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
-SCCACHE_GHA_ENABLED = "true"
-
+# ---------------------------------------------------------------------------
+# Linux
+# ---------------------------------------------------------------------------
 [tool.cibuildwheel.linux]
+repair-wheel-command = "./scripts/repair_wheel.sh {dest_dir} {wheel}"
 before-all = [
     "pushd /opt/_internal && tar xf static-libs-for-embedding-only.tar.xz && popd",
     "yum install -y epel-release yum-utils",
@@ -60,7 +61,7 @@ before-all = [
     "yum makecache --refresh",
     "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip wget gsl-devel ccache",
     "SCCACHE_V=v0.14.0; ARCH=$(uname -m); wget -q https://github.com/mozilla/sccache/releases/download/${SCCACHE_V}/sccache-${SCCACHE_V}-${ARCH}-unknown-linux-musl.tar.gz -O /tmp/sccache.tar.gz && tar xf /tmp/sccache.tar.gz -C /tmp && cp /tmp/sccache-${SCCACHE_V}-${ARCH}-unknown-linux-musl/sccache /usr/local/bin/sccache && chmod +x /usr/local/bin/sccache && rm -rf /tmp/sccache*",
-    "sccache --start-server && echo 'sccache server started successfully' && sccache --show-stats",
+    "if [ -n \"${ACTIONS_RUNTIME_TOKEN:-}\" ]; then sccache --start-server && sccache --show-stats; else echo 'sccache not started (no GHA cache available)'; fi",
     "pip install setuptools_scm",
     "python -m setuptools_scm --force-write-version-files",
 ]
@@ -70,8 +71,55 @@ environment-pass = [
     "ACTIONS_CACHE_SERVICE_V2"
 ]
 skip = "*-musllinux_*"
-manylinux-x86_64-image="quay.io/pypa/manylinux_2_28_x86_64"
-manylinux-aarch64-image="quay.io/pypa/manylinux_2_28_aarch64"
+manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64"
+manylinux-aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64"
+
+[tool.cibuildwheel.linux.environment]
+BOOST_LIBRARYDIR = "/usr/lib64/boost1.78"
+BOOST_INCLUDEDIR = "/usr/include/boost1.78"
+
+# ---------------------------------------------------------------------------
+# macOS
+# ---------------------------------------------------------------------------
+[tool.cibuildwheel.macos]
+repair-wheel-command = "./scripts/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}"
+# NOTE: unlike Linux, cibuildwheel on macOS runs directly on the host (no
+# container). Anything in `before-all` would mutate the host, so we keep
+# this minimal and expect build dependencies (boost, hdf5, gsl, lapack,
+# gcc/gfortran, ccache, cmake, ninja) to already be installed. CI installs
+# them as an explicit step; locally install them once with `make brew-deps`.
+before-all = [
+    "pip install setuptools_scm delocate",
+    "python -m setuptools_scm --force-write-version-files",
+]
+environment-pass = [
+    "ACTIONS_RESULTS_URL",
+    "ACTIONS_RUNTIME_TOKEN",
+    "ACTIONS_CACHE_SERVICE_V2",
+    "MACOSX_DEPLOYMENT_TARGET"
+]
+
+[tool.cibuildwheel.macos.environment]
+# Use Homebrew-provided libraries. The prefix differs between Intel
+# (/usr/local) and Apple Silicon (/opt/homebrew); resolve at build time.
+HOMEBREW_PREFIX = "$(brew --prefix)"
+BOOST_ROOT = "$(brew --prefix boost)"
+BOOST_LIBRARYDIR = "$(brew --prefix boost)/lib"
+BOOST_INCLUDEDIR = "$(brew --prefix boost)/include"
+HDF5_ROOT = "$(brew --prefix hdf5)"
+GSL_ROOT_DIR = "$(brew --prefix gsl)"
+LAPACK_DIR = "$(brew --prefix lapack)"
+# gfortran is required by Dakota's TPLs (BLAS/LAPACK linkage). gfortran
+# is shipped by the Homebrew `gcc` formula.
+FC = "gfortran"
+# NOTE: We deliberately do NOT pin MACOSX_DEPLOYMENT_TARGET here. Homebrew
+# bottles are built for the runner's macOS version, so forcing an older
+# deployment target than the bottles causes delocate to refuse the wheel
+# (libraries' LC_BUILD_VERSION exceeds the target). Letting cibuildwheel
+# default to the runner OS keeps both consistent. On the GitHub runners
+# this yields macosx_13_x (macos-13/x86_64) and macosx_14_0 (macos-14/arm64)
+# wheels.
+
 [tool.py-build-cmake.cmake]
 source_path = "."
 build_args = ["-j8"]

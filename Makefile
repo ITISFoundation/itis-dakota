@@ -22,6 +22,23 @@ wheel: cache-clean clean $(VENV)
 	mkdir -p $(CCACHE_HOST_DIR)
 	MAKEFLAGS="--no-print-directory" CIBW_BUILD="cp314-*" CIBW_ARCHS="$(shell uname -m)" CIBW_CONTAINER_ENGINE='docker; create_args: -v "$(CCACHE_HOST_DIR):/ccache"' CIBW_ENVIRONMENT='CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache CCACHE_DIR=/ccache CCACHE_UMASK=000 BOOST_LIBRARYDIR=/usr/lib64/boost1.78 BOOST_INCLUDEDIR=/usr/include/boost1.78' $(VENV_BIN)/cibuildwheel --platform linux
 
+# Build a macOS wheel for the current host arch using cibuildwheel.
+# Requires the Homebrew build deps to be installed once via `make brew-deps`.
+# We set MACOSX_DEPLOYMENT_TARGET to the host's macOS major version so it
+# matches the Homebrew bottles' minimum target (otherwise delocate refuses
+# to bundle them).
+wheel-macos: cache-clean clean $(VENV)
+	MAC_MAJOR=$$(sw_vers -productVersion | cut -d. -f1).0; \
+	MAKEFLAGS="--no-print-directory" \
+		MACOSX_DEPLOYMENT_TARGET=$$MAC_MAJOR \
+		CIBW_BUILD="cp314-*" \
+		CIBW_ARCHS="$(shell uname -m)" \
+		$(VENV_BIN)/cibuildwheel --platform macos
+
+# One-time install of macOS build dependencies via Homebrew.
+brew-deps:
+	brew install boost hdf5 gsl lapack ccache sccache cmake ninja gcc
+
 # Build wheel only if no wheel present in wheelhouse/
 wheelhouse/.built:
 	$(MAKE) wheel

@@ -42,20 +42,31 @@ jobs:
           CUSTOM_TAG: ${{ steps.custom_version.outputs.tag }}
 
   wheels:
-    name: Build wheel on ${{ matrix.python }} ${{ matrix.arch }}
+    name: Build wheel on ${{ matrix.os }} ${{ matrix.python }} ${{ matrix.arch }}
     runs-on: ${{ matrix.github-runner }}
     strategy:
       fail-fast: false
       matrix:
         python: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        os: [ "linux", "macos" ]
         arch: [ "x86_64", "arm64" ]
         include:
-          - arch: x86_64
+          - os: linux
+            arch: x86_64
             github-runner: "ubuntu-24.04"
             wheel-platform: "x86_64"
-          - arch: arm64
+          - os: linux
+            arch: arm64
             github-runner: "ubuntu-24.04-arm"
             wheel-platform: "aarch64"
+          - os: macos
+            arch: x86_64
+            github-runner: "macos-13" # Intel runner
+            wheel-platform: "x86_64"
+          - os: macos
+            arch: arm64
+            github-runner: "macos-14" # Apple Silicon runner
+            wheel-platform: "arm64"
 
     permissions:
       contents: write
@@ -82,17 +93,43 @@ jobs:
           cache: "pip"
       - name: Get dakota src
         run: make get-dakota-src
+      - name: Install macOS build dependencies (Homebrew)
+        if: matrix.os == 'macos'
+        run: make brew-deps
+      - name: Set MACOSX_DEPLOYMENT_TARGET from runner
+        if: matrix.os == 'macos'
+        # cibuildwheel's default (10.13/11.0) is older than the Homebrew
+        # bottles installed on the runner, which makes delocate refuse to
+        # bundle them. Pin to the runner's major macOS version.
+        run: |
+          MAC_MAJOR=$(sw_vers -productVersion | cut -d. -f1).0
+          echo "MACOSX_DEPLOYMENT_TARGET=$MAC_MAJOR" >> "$GITHUB_ENV"
       - name: Configure sccache for cibuildwheel
         uses: mozilla-actions/sccache-action@v0.0.10
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
+          # Enable sccache only in CI (where the GHA cache backend is
+          # available). Defined here rather than in pyproject.toml so local
+          # builds don't try to talk to the GHA cache service.
+          CIBW_ENVIRONMENT: >-
+            CMAKE_C_COMPILER_LAUNCHER=sccache
+            CMAKE_CXX_COMPILER_LAUNCHER=sccache SCCACHE_GHA_ENABLED=true
       - name: Run tests
         run: |
           pip install pytest
           pip install ./wheelhouse/itis_dakota*.whl
-          pytest
+          # On macOS the standalone `dakota` CLI binary cannot be made to
+          # find the user's Python framework reliably across pyenv /
+          # framework / conda installs (the wheel does not bundle a Python
+          # interpreter). Only the `import dakota.environment` interface is
+          # supported on macOS; skip the CLI test module there.
+          if [ "${{ matrix.os }}" = "macos" ]; then
+            pytest --ignore=tests/test_dakota_executable.py
+          else
+            pytest
+          fi
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
