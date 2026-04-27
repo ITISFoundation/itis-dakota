@@ -142,6 +142,10 @@ DAKOTA_PYTHON_WRAPPER = "ON"
 DAKOTA_PYTHON_DIRECT_INTERFACE = "ON"
 BUILD_SHARED_LIBS = "OFF"
 CMAKE_POSITION_INDEPENDENT_CODE = "ON"
+# Boost 1.90's BoostConfig.cmake is broken on Homebrew (missing
+# per-component configs like boost_systemConfig.cmake). Force CMake
+# to use the traditional FindBoost module (header/library detection).
+Boost_NO_BOOST_CMAKE = "ON"
 CXX_FLAGS = "-w"
 CMAKE_CXX_FLAGS = "-Wno-psabi"
 
