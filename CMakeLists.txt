@@ -12,6 +12,11 @@ add_compile_options(-w)
 add_compile_definitions(BOOST_BIND_GLOBAL_PLACEHOLDERS)
 add_subdirectory(dakota EXCLUDE_FROM_ALL)
 
+# Fix QUESO_BUILD_DATE to a constant string so __DATE__/__TIME__ don't
+# change the preprocessed output on every build, allowing sccache to
+# cache QUESO object files across rebuilds (~150 files).
+target_compile_definitions(queso PRIVATE QUESO_BUILD_DATE="Dakota 6.23")
+
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
 
 install(TARGETS dakota
