@@ -112,6 +112,9 @@ LAPACK_DIR = "$(brew --prefix lapack)"
 # gfortran is required by Dakota's TPLs (BLAS/LAPACK linkage). gfortran
 # is shipped by the Homebrew `gcc` formula.
 FC = "gfortran"
+# Ensure Homebrew's bin is on PATH so CMake can find gfortran, gcc, etc.
+# inside cibuildwheel's build-isolation environment.
+PATH = "$(brew --prefix)/bin:$PATH"
 # NOTE: We deliberately do NOT pin MACOSX_DEPLOYMENT_TARGET here. Homebrew
 # bottles are built for the runner's macOS version, so forcing an older
 # deployment target than the bottles causes delocate to refuse the wheel

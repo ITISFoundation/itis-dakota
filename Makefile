@@ -19,8 +19,12 @@ all:
 CCACHE_HOST_DIR := $(HOME)/.cache/itis-dakota-ccache
 
 wheel: cache-clean clean $(VENV)
+ifeq ($(shell uname -s),Darwin)
+	@$(MAKE) --no-print-directory wheel-macos
+else
 	mkdir -p $(CCACHE_HOST_DIR)
 	MAKEFLAGS="--no-print-directory" CIBW_BUILD="cp314-*" CIBW_ARCHS="$(shell uname -m)" CIBW_CONTAINER_ENGINE='docker; create_args: -v "$(CCACHE_HOST_DIR):/ccache"' CIBW_ENVIRONMENT='CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache CCACHE_DIR=/ccache CCACHE_UMASK=000 BOOST_LIBRARYDIR=/usr/lib64/boost1.78 BOOST_INCLUDEDIR=/usr/include/boost1.78' $(VENV_BIN)/cibuildwheel --platform linux
+endif
 
 # Build a macOS wheel for the current host arch using cibuildwheel.
 # Requires the Homebrew build deps to be installed once via `make brew-deps`.
@@ -29,9 +33,10 @@ wheel: cache-clean clean $(VENV)
 # to bundle them).
 wheel-macos: cache-clean clean $(VENV)
 	MAC_MAJOR=$$(sw_vers -productVersion | cut -d. -f1).0; \
+	PYVER=$$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')"); \
 	MAKEFLAGS="--no-print-directory" \
 		MACOSX_DEPLOYMENT_TARGET=$$MAC_MAJOR \
-		CIBW_BUILD="cp314-*" \
+		CIBW_BUILD="$$PYVER-*" \
 		CIBW_ARCHS="$(shell uname -m)" \
 		$(VENV_BIN)/cibuildwheel --platform macos
 
