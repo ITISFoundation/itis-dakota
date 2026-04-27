@@ -3,6 +3,7 @@ name: "buildwheels"
 on:
   pull_request:
   push:
+    branches: [ master ]
   schedule:
     - cron: "5 0 * * 0"
 
