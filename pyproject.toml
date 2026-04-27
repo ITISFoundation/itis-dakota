@@ -19,6 +19,7 @@ issues = "https://github.com/ITISFoundation/itis-dakota/issues"
 requires = [
     "py-build-cmake",
     "cmake",
+    "ninja",
     "auditwheel",
     "setuptools",
     "setuptools_scm",
@@ -58,7 +59,7 @@ before-all = [
     "yum install -y epel-release yum-utils",
     "yum-config-manager --enable epel",
     "yum makecache --refresh",
-    "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip wget gsl-devel ccache",
+    "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip wget gsl-devel ccache ninja-build",
     "SCCACHE_V=v0.14.0; ARCH=$(uname -m); wget -q https://github.com/mozilla/sccache/releases/download/${SCCACHE_V}/sccache-${SCCACHE_V}-${ARCH}-unknown-linux-musl.tar.gz -O /tmp/sccache.tar.gz && tar xf /tmp/sccache.tar.gz -C /tmp && cp /tmp/sccache-${SCCACHE_V}-${ARCH}-unknown-linux-musl/sccache /usr/local/bin/sccache && chmod +x /usr/local/bin/sccache && rm -rf /tmp/sccache*",
     "if [ -n \"${ACTIONS_RUNTIME_TOKEN:-}\" ]; then sccache --start-server && sccache --show-stats; else echo 'sccache not started (no GHA cache available)'; fi",
     "pip install setuptools_scm",
@@ -68,7 +69,9 @@ environment-pass = [
     "ACTIONS_RESULTS_URL",
     "ACTIONS_RUNTIME_TOKEN",
     "ACTIONS_CACHE_SERVICE_V2",
-    "SCCACHE_GHA_ENABLED"
+    "SCCACHE_GHA_ENABLED",
+    "SCCACHE_GHA_CACHE_TO",
+    "SCCACHE_GHA_CACHE_FROM"
 ]
 skip = "*-musllinux_*"
 manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64"
@@ -98,7 +101,10 @@ environment-pass = [
     "ACTIONS_RESULTS_URL",
     "ACTIONS_RUNTIME_TOKEN",
     "ACTIONS_CACHE_SERVICE_V2",
-    "MACOSX_DEPLOYMENT_TARGET"
+    "MACOSX_DEPLOYMENT_TARGET",
+    "SCCACHE_GHA_ENABLED",
+    "SCCACHE_GHA_CACHE_TO",
+    "SCCACHE_GHA_CACHE_FROM"
 ]
 
 [tool.cibuildwheel.macos.environment]
@@ -132,7 +138,7 @@ CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
 
 [tool.py-build-cmake.cmake]
 source_path = "."
-build_args = ["-j8"]
+generator = "Ninja"
 build_type = "Release"
 install_components = ["dakota_for_python"]
 

@@ -2,6 +2,16 @@ name: "buildwheels"
 
 on:
   pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "pyproject.toml"
+      - "build_backend/**"
+      - "src_patches_v623/**"
+      - "scripts/**"
+      - "itis_dakota/**"
+      - "tests/**"
+      - "Makefile"
+      - ".github/workflows/buildwheels.yml"
   push:
     branches: [ master ]
   schedule:
@@ -92,8 +102,23 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
+      - name: Cache Dakota source
+        uses: actions/cache@v4
+        with:
+          path: dakota
+          key: dakota-src-v6.23.0-${{ hashFiles('src_patches_v623/*.patch') }}
       - name: Get dakota src
-        run: make get-dakota-src
+        run: |
+          if [ ! -d dakota/.git ]; then
+            make get-dakota-src
+          fi
+      - name: Cache Homebrew packages
+        if: matrix.os == 'macos'
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: brew-${{ matrix.arch }}-${{ hashFiles('Makefile') }}
+          restore-keys: brew-${{ matrix.arch }}-
       - name: Install macOS build dependencies (Homebrew)
         if: matrix.os == 'macos'
         run: make brew-deps
@@ -116,6 +141,10 @@ jobs:
           # enabled here and passed into the Linux container via
           # environment-pass in pyproject.toml.
           SCCACHE_GHA_ENABLED: "true"
+          # Scope sccache cache per OS/arch to avoid conflicts and write
+          # errors when multiple jobs compete for the same cache key.
+          SCCACHE_GHA_CACHE_TO: sccache-${{ matrix.os }}-${{ matrix.arch }}
+          SCCACHE_GHA_CACHE_FROM: sccache-${{ matrix.os }}-${{ matrix.arch }}
       - name: Run tests
         run: |
           pip install pytest
