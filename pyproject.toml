@@ -54,7 +54,7 @@ build-frontend = "build[uv]"
 # Linux
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel.linux]
-repair-wheel-command = "./scripts/repair_wheel.sh {dest_dir} {wheel}; rc=$?; ccache --show-stats > {project}/ccache_stats.txt 2>&1 || true; exit $rc"
+repair-wheel-command = "./scripts/repair_wheel.sh {dest_dir} {wheel}"
 before-all = [
     "pushd /opt/_internal && tar xf static-libs-for-embedding-only.tar.xz && popd",
     "yum install -y epel-release yum-utils",
@@ -75,6 +75,9 @@ BOOST_INCLUDEDIR = "/usr/include/boost1.78"
 CCACHE_DIR = "/project/.ccache"
 CCACHE_MAXSIZE = "1G"
 CCACHE_COMPRESS = "true"
+CCACHE_BASEDIR = "/project"
+CCACHE_SLOPPINESS = "include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,clang_index_store,system_headers,locale"
+CCACHE_NOHASHDIR = "true"
 CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 
@@ -116,6 +119,12 @@ FC = "$(brew --prefix)/bin/gfortran"
 PATH = "$(brew --prefix)/bin:$PATH"
 # ccache compiler launchers — ccache uses local disk cache, persisted
 # across CI runs via actions/cache.
+# CCACHE_BASEDIR + CCACHE_SLOPPINESS + CCACHE_NOHASHDIR prevent cache
+# misses caused by pip's random build-isolation temp directories
+# (Python/numpy include paths change each cibuildwheel invocation).
+CCACHE_BASEDIR = "/Users"
+CCACHE_SLOPPINESS = "include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,clang_index_store,system_headers,locale"
+CCACHE_NOHASHDIR = "true"
 CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 # NOTE: We deliberately do NOT pin MACOSX_DEPLOYMENT_TARGET here. Homebrew

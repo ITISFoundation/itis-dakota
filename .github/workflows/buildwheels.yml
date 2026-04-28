@@ -114,17 +114,25 @@ jobs:
       - name: Show ccache stats
         if: always()
         run: |
-          if [ -f ccache_stats.txt ]; then
-            echo "## ccache stats" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat ccache_stats.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            # Extract hit rate for annotation (awk is portable across Linux/macOS)
-            RATE=$(awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' ccache_stats.txt | tail -1)
-            echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
-          else
-            echo "::notice title=ccache stats - ${{ github.job }}::No ccache stats found"
+          # ccache ran inside the manylinux container but CCACHE_DIR pointed
+          # to /project/.ccache which is bind-mounted to $PWD/.ccache on host.
+          # Install ccache on the host to read the stats db.
+          if ! command -v ccache &>/dev/null; then
+            sudo apt-get install -y -qq ccache >/dev/null 2>&1 || true
           fi
+          if command -v ccache &>/dev/null && [ -d .ccache ]; then
+            STATS=$(ccache --cache-dir="$PWD/.ccache" --show-stats 2>&1) || true
+          elif [ -d .ccache ]; then
+            STATS="ccache not available on host; cache dir exists ($(du -sh .ccache | cut -f1))"
+          else
+            STATS="No .ccache directory found"
+          fi
+          echo "## ccache stats" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$STATS" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          RATE=$(echo "$STATS" | awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' | tail -1)
+          echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
       - name: Run tests
         run: |
           pip install pytest
