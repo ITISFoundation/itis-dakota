@@ -53,7 +53,7 @@ build-frontend = "build[uv]"
 # Linux
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel.linux]
-repair-wheel-command = "./scripts/repair_wheel.sh {dest_dir} {wheel}; rc=$?; sccache --show-stats --stats-format=json > /project/sccache_stats.json 2>/dev/null; sccache --show-stats > /project/sccache_stats.txt 2>/dev/null; exit $rc"
+repair-wheel-command = "bash -c './scripts/repair_wheel.sh {dest_dir} {wheel}; rc=$?; echo \"=== sccache stats dump ===\"; /usr/local/bin/sccache --show-stats --stats-format=json > {project}/sccache_stats.json 2>&1 || echo \"sccache json stats failed: $?\"; /usr/local/bin/sccache --show-stats > {project}/sccache_stats.txt 2>&1 || echo \"sccache txt stats failed: $?\"; ls -la {project}/sccache_stats.* 2>&1 || true; exit $rc'"
 before-all = [
     "pushd /opt/_internal && tar xf static-libs-for-embedding-only.tar.xz && popd",
     "yum install -y epel-release yum-utils",

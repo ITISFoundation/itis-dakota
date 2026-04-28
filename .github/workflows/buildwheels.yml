@@ -117,6 +117,9 @@ jobs:
       - name: Show sccache stats
         if: always()
         run: |
+          echo "Looking for sccache stats files..."
+          ls -la sccache_stats.* 2>/dev/null || echo "No sccache_stats files found in $(pwd)"
+          find . -name 'sccache_stats*' -maxdepth 3 2>/dev/null || true
           if [ -f sccache_stats.json ]; then
             HITS=$(jq '[.stats.cache_hits.counts[]] | add // 0' sccache_stats.json)
             MISSES=$(jq '[.stats.cache_misses.counts[]] | add // 0' sccache_stats.json)
