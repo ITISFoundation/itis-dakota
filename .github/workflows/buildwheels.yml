@@ -103,6 +103,10 @@ jobs:
           fi
       - name: Configure sccache for cibuildwheel
         uses: mozilla-actions/sccache-action@v0.0.10
+        with:
+          # Disable host-side annotations: sccache runs inside the
+          # manylinux container, so the host sees 0/0/0.
+          disable_annotations: "true"
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
@@ -110,6 +114,33 @@ jobs:
           SCCACHE_GHA_ENABLED: "true"
           SCCACHE_GHA_CACHE_TO: sccache-linux-${{ matrix.arch }}
           SCCACHE_GHA_CACHE_FROM: sccache-linux-${{ matrix.arch }}
+      - name: Show sccache stats
+        if: always()
+        run: |
+          if [ -f sccache_stats.json ]; then
+            HITS=$(jq '[.stats.cache_hits.counts[]] | add // 0' sccache_stats.json)
+            MISSES=$(jq '[.stats.cache_misses.counts[]] | add // 0' sccache_stats.json)
+            ERRORS=$(jq '[.stats.cache_errors.counts[]] | add // 0' sccache_stats.json)
+            TOTAL=$((HITS + MISSES + ERRORS))
+            if [ "$TOTAL" -gt 0 ]; then RATE=$((HITS * 100 / TOTAL)); else RATE=0; fi
+            echo "::notice title=sccache stats - ${{ github.job }}::${RATE}% - ${HITS} hits, ${MISSES} misses, ${ERRORS} errors"
+            echo "## sccache stats" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Cache hit % | ${RATE}% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Cache hits | ${HITS} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Cache misses | ${MISSES} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Cache errors | ${ERRORS} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Full stats</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat sccache_stats.txt 2>/dev/null >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "::notice title=sccache stats - ${{ github.job }}::No sccache stats found (build may have failed before stats were collected)"
+          fi
       - name: Run tests
         run: |
           pip install pytest
