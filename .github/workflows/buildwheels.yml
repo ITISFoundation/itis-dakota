@@ -108,13 +108,16 @@ jobs:
           key: ccache-linux-${{ matrix.arch }}-${{ github.sha }}
           restore-keys: ccache-linux-${{ matrix.arch }}-
       - name: Ensure ccache dir exists
-        run: mkdir -p .ccache
+        run: mkdir -p .ccache .cibw_wheels_safe
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
-          CIBW_CONTAINER_ENGINE: "docker; create_args: --mount type=bind,source=${{
-            github.workspace }}/.ccache,target=/project/.ccache"
+          CIBW_CONTAINER_ENGINE: >-
+            docker; create_args: --mount type=bind,source=${{ github.workspace
+            }}/.ccache,target=/project/.ccache --mount type=bind,source=${{
+            github.workspace
+            }}/.cibw_wheels_safe,target=/project/.cibw_wheels_safe
       - name: Verify wheel integrity
         # Docker Desktop on macOS sometimes corrupts wheels via `docker cp`
         # from the cibuildwheel container (intermittent BadCRC). repair_wheel.sh
