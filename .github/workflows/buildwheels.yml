@@ -125,7 +125,7 @@ jobs:
             sudo apt-get install -y -qq ccache >/dev/null 2>&1 || true
           fi
           if command -v ccache &>/dev/null && [ -d .ccache ]; then
-            STATS=$(ccache --cache-dir="$PWD/.ccache" --show-stats 2>&1) || true
+            STATS=$(CCACHE_DIR="$PWD/.ccache" ccache --show-stats 2>&1) || true
           elif [ -d .ccache ]; then
             STATS="ccache not available on host; cache dir exists ($(du -sh .ccache | cut -f1))"
           else
