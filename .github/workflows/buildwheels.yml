@@ -115,11 +115,50 @@ jobs:
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
           CIBW_CONTAINER_ENGINE: "docker; create_args: --mount type=bind,source=${{
             github.workspace }}/.ccache,target=/project/.ccache"
+      - name: Verify wheel integrity
+        # Docker Desktop on macOS sometimes corrupts wheels via `docker cp`
+        # from the cibuildwheel container (intermittent BadCRC). repair_wheel.sh
+        # writes a duplicate via the project bind-mount at .cibw_wheels_safe/
+        # which uses virtiofs reliably. If the wheelhouse copy is corrupted,
+        # swap in the safe copy. On native Linux runners both are identical.
+        run: |
+          python3 - <<'PY'
+          import zipfile, glob, sys, os, shutil
+          failed = False
+          for whl in sorted(glob.glob('wheelhouse/*.whl')):
+              try:
+                  with zipfile.ZipFile(whl) as zf:
+                      bad = zf.testzip()
+              except zipfile.BadZipFile as e:
+                  bad = str(e)
+              if not bad:
+                  with zipfile.ZipFile(whl) as zf:
+                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
+                  continue
+              safe = os.path.join('.cibw_wheels_safe', os.path.basename(whl))
+              print(f'CORRUPTED: {whl} (issue: {bad})', file=sys.stderr)
+              if os.path.exists(safe):
+                  try:
+                      with zipfile.ZipFile(safe) as zf:
+                          if zf.testzip() is None:
+                              shutil.copyfile(safe, whl)
+                              print(f'RECOVERED: replaced {whl} from {safe}')
+                              continue
+                  except zipfile.BadZipFile:
+                      pass
+                  print(f'  safe copy also corrupted: {safe}', file=sys.stderr)
+              else:
+                  print(f'  no safe copy at {safe}', file=sys.stderr)
+              failed = True
+          if failed:
+              sys.exit(1)
+          PY
       - name: Show ccache stats
         if: always()
         run: |
           # ccache ran inside the manylinux container but CCACHE_DIR pointed
           # to /project/.ccache which is bind-mounted to $PWD/.ccache on host.
+          # Install ccache on the host to read the stats db.
           # Install ccache on the host to read the stats db.
           if ! command -v ccache &>/dev/null; then
             sudo apt-get install -y -qq ccache >/dev/null 2>&1 || true
@@ -140,7 +179,12 @@ jobs:
       - name: Run tests
         run: |
           pip install pytest
-          pip install ./wheelhouse/itis_dakota*.whl
+          # --force-reinstall ensures the just-built wheel is actually
+          # installed (otherwise pip skips when the same version is
+          # already present from a prior run, e.g. cached test runners
+          # or local `act` runs).
+          pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*.whl
+          pip install numpy
           pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v7
@@ -235,6 +279,22 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.cibw-build }}
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
+      - name: Verify wheel integrity
+        run: |
+          python3 - <<'PY'
+          import zipfile, glob, sys
+          failed = False
+          for whl in sorted(glob.glob('wheelhouse/*.whl')):
+              with zipfile.ZipFile(whl) as zf:
+                  bad = zf.testzip()
+                  if bad:
+                      print(f'CORRUPTED: {whl} (first bad entry: {bad})', file=sys.stderr)
+                      failed = True
+                  else:
+                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
+          if failed:
+              sys.exit(1)
+          PY
       - name: Show ccache stats
         if: always()
         run: |
@@ -247,7 +307,11 @@ jobs:
       - name: Run tests
         run: |
           pip install pytest
-          pip install ./wheelhouse/itis_dakota*${{ matrix.test-cp }}*.whl
+          # --force-reinstall ensures the just-built wheel is actually
+          # installed (otherwise pip skips when the same version is
+          # already present from a prior run).
+          pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*${{ matrix.test-cp }}*.whl
+          pip install numpy
           pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v7
@@ -291,7 +355,8 @@ jobs:
       - name: Install wheel and run tests
         run: |
           pip install pytest
-          pip install wheelhouse/*cp314*.whl
+          pip install --force-reinstall --no-deps wheelhouse/*cp314*.whl
+          pip install numpy
           pytest
 
   release:
@@ -308,12 +373,18 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ needs.tag.outputs.new_tag }}
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
       - name: Create a GitHub release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ needs.tag.outputs.new_tag }}
           generateReleaseNotes: true
-          artifacts: wheels-*
+          artifacts: dist/*.whl
 
   test-pypi:
     name: Publish wheels on Test PyPI

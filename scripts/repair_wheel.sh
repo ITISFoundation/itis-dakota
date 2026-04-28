@@ -86,19 +86,45 @@ find "${WHEEL_NAME}/itis_dakota.libs" -type f -name "*.so.*" -exec patchelf --se
 cd "${WHEEL_NAME}"
 zip -r "${WHEEL_NAME}.whl" *
 mv "${WHEEL_NAME}.whl" ..
+cd "${DEST_DIR}"
 
 # Step 8: Verify the wheel is a valid zip
-cd "${DEST_DIR}"
-python3 -c "
+python3 - <<PYEOF
 import zipfile, sys
-whl = '${WHEEL_NAME}.whl'
-z = zipfile.ZipFile(whl)
-bad = z.testzip()
-if bad:
-    print(f'ERROR: Wheel zip is corrupted, first bad entry: {bad}', file=sys.stderr)
-    sys.exit(1)
-print(f'Wheel zip verification passed: {whl}')
-"
+whl = "${WHEEL_NAME}.whl"
+with zipfile.ZipFile(whl) as zf:
+    bad = zf.testzip()
+    if bad:
+        print(f"ERROR: testzip() reports bad entry: {bad}", file=sys.stderr)
+        sys.exit(1)
+    print(f"Wheel zip verification passed for {whl}")
+PYEOF
+
+# Step 9: Workaround for Docker Desktop on macOS / docker-cp page-cache
+# inconsistency. After cibuildwheel's `repair_wheel` finishes, it runs
+# `docker cp container:/output/. host_dir` to extract the wheel — and on
+# Docker Desktop for Mac this transports stale bytes intermittently
+# (BadZipFile / bad CRC at install time) even after fsync+sync. The
+# corruption is non-deterministic; in-container `drop_caches` does not
+# help because the stale pages live in Docker Desktop's HOST-side virtio
+# cache, not the container's.
+#
+# Workaround: also write the wheel directly through the project bind
+# mount at /project/.cibw_wheels_safe/. Bind-mounted writes go through
+# virtiofs/9p directly (same path ccache writes use reliably), so they
+# land on the host with the correct bytes. The workflow's host-side
+# verification step swaps in the safe copy if the docker-cp wheel is
+# corrupted.
+python3 -c "import os; fd=os.open('${WHEEL_NAME}.whl', os.O_RDONLY); os.fsync(fd); os.close(fd)"
+sync
+SAFE_DIR=/project/.cibw_wheels_safe
+if mkdir -p "${SAFE_DIR}" 2>/dev/null && [ -w "${SAFE_DIR}" ]; then
+    cp -f "${WHEEL_NAME}.whl" "${SAFE_DIR}/${WHEEL_NAME}.whl"
+    sync
+    echo "Wrote safe copy to ${SAFE_DIR}/${WHEEL_NAME}.whl"
+else
+    echo "WARNING: ${SAFE_DIR} not writable, no safe copy written" >&2
+fi
 
 # Cleanup
 rm -rf "${TMPDIR}"

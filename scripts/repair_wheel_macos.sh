@@ -28,7 +28,7 @@
 #   $2: source wheel
 #   $3: target archs (e.g. "x86_64", "arm64", or "x86_64,arm64")
 
-set -ex
+set -euo pipefail
 
 DEST_DIR=$1
 ORIG_WHEEL=$2
@@ -37,7 +37,7 @@ DELOCATE_ARCHS=${3:-$(uname -m)}
 mkdir -p "${DEST_DIR}"
 
 if ! command -v delocate-wheel >/dev/null 2>&1; then
-    pip install --quiet delocate
+    python3 -m pip install --quiet delocate
 fi
 
 # Step 1: standard delocate-wheel pass to bundle dependencies.
@@ -207,7 +207,7 @@ fix_install_names() {
     local f="$1"
     # otool -L lists each linked install name; rewrite anything pointing to
     # ../../../../.dylibs/ via @loader_path.
-    otool -L "${f}" 2>/dev/null | awk 'NR>1 {print $1}' | while read -r oldname; do
+    while read -r oldname; do
         case "${oldname}" in
             @loader_path/../../../../.dylibs/*)
                 newname="@loader_path/../../.dylibs/${oldname##*/.dylibs/}"
@@ -218,7 +218,7 @@ fix_install_names() {
                 install_name_tool -change "${oldname}" "${newname}" "${f}"
                 ;;
         esac
-    done
+    done < <(otool -L "${f}" 2>/dev/null | awk 'NR>1 {print $1}')
 }
 
 # Apply fix to all Mach-O files inside the wheel's .data/platlib tree
@@ -239,20 +239,20 @@ RELOCATED_DAKOTA=$(find "${WORKDIR}" -type f -path "*/itis_dakota/.bin/dakota" |
 if [ -n "${RELOCATED_DAKOTA}" ]; then
     # Rewrite any @loader_path/.../.dylibs/Python reference to just "Python"
     # (bare name — resolved at runtime via DYLD_LIBRARY_PATH set by wrapper).
-    otool -L "${RELOCATED_DAKOTA}" 2>/dev/null | awk 'NR>1 {print $1}' | while read -r oldname; do
+    while read -r oldname; do
         case "${oldname}" in
             */.dylibs/Python|*/Python.framework/*)
                 install_name_tool -change "${oldname}" "Python" "${RELOCATED_DAKOTA}"
                 ;;
         esac
-    done
+    done < <(otool -L "${RELOCATED_DAKOTA}" 2>/dev/null | awk 'NR>1 {print $1}')
 fi
 
 # Step 4: re-codesign every Mach-O file we modified. macOS requires an
 # ad-hoc signature (or stricter) for arm64 binaries to be loadable.
 while IFS= read -r f; do
     if file "${f}" | grep -q 'Mach-O'; then
-        codesign --force --sign - "${f}" 2>/dev/null || true
+        codesign --force --sign - "${f}"
     fi
 done < <(find "${WORKDIR}" -type f)
 
