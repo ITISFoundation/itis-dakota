@@ -107,10 +107,14 @@ jobs:
           path: .ccache
           key: ccache-linux-${{ matrix.arch }}-${{ github.sha }}
           restore-keys: ccache-linux-${{ matrix.arch }}-
+      - name: Ensure ccache dir exists
+        run: mkdir -p .ccache
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
+          CIBW_CONTAINER_ENGINE: "docker; create_args: --mount type=bind,source=${{
+            github.workspace }}/.ccache,target=/project/.ccache"
       - name: Show ccache stats
         if: always()
         run: |
