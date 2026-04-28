@@ -12,3 +12,5 @@ itis_dakota/py.typed
 /.venv
 /make.log
 /tmp
+/.ccache
+
