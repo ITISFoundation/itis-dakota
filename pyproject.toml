@@ -44,34 +44,26 @@ local_scheme = "no-local-version"
 build-verbosity = 1
 build-frontend = "build[uv]"
 
-# NOTE: CMAKE_*_COMPILER_LAUNCHER and sccache vars are set in the
+# NOTE: CMAKE_*_COMPILER_LAUNCHER and ccache vars are set in the
 # per-platform [tool.cibuildwheel.{linux,macos}.environment] sections.
-# SCCACHE_GHA_ENABLED is passed into the Linux container via
-# environment-pass; on macOS it is inherited from the runner env.
+# On Linux, CCACHE_DIR points to /project/.ccache so the cache is
+# persisted via actions/cache on the host; on macOS ccache uses the
+# default ~/Library/Caches/ccache directory.
 
 # ---------------------------------------------------------------------------
 # Linux
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel.linux]
-repair-wheel-command = "bash -c './scripts/repair_wheel.sh {dest_dir} {wheel}; rc=$?; echo \"=== sccache stats dump ===\"; /usr/local/bin/sccache --show-stats --stats-format=json > {project}/sccache_stats.json 2>&1 || echo \"sccache json stats failed: $?\"; /usr/local/bin/sccache --show-stats > {project}/sccache_stats.txt 2>&1 || echo \"sccache txt stats failed: $?\"; ls -la {project}/sccache_stats.* 2>&1 || true; exit $rc'"
+repair-wheel-command = "./scripts/repair_wheel.sh {dest_dir} {wheel}; rc=$?; ccache --show-stats > {project}/ccache_stats.txt 2>&1 || true; exit $rc"
 before-all = [
     "pushd /opt/_internal && tar xf static-libs-for-embedding-only.tar.xz && popd",
     "yum install -y epel-release yum-utils",
     "yum-config-manager --enable epel",
     "yum makecache --refresh",
     "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip wget gsl-devel ccache ninja-build",
-    "SCCACHE_V=v0.14.0; ARCH=$(uname -m); wget -q https://github.com/mozilla/sccache/releases/download/${SCCACHE_V}/sccache-${SCCACHE_V}-${ARCH}-unknown-linux-musl.tar.gz -O /tmp/sccache.tar.gz && tar xf /tmp/sccache.tar.gz -C /tmp && cp /tmp/sccache-${SCCACHE_V}-${ARCH}-unknown-linux-musl/sccache /usr/local/bin/sccache && chmod +x /usr/local/bin/sccache && rm -rf /tmp/sccache*",
-    "if [ -n \"${ACTIONS_RUNTIME_TOKEN:-}\" ]; then sccache --start-server && sccache --show-stats; else echo 'sccache not started (no GHA cache available)'; fi",
+    "ccache --zero-stats",
     "pip install setuptools_scm",
     "python -m setuptools_scm --force-write-version-files",
-]
-environment-pass = [
-    "ACTIONS_RESULTS_URL",
-    "ACTIONS_RUNTIME_TOKEN",
-    "ACTIONS_CACHE_SERVICE_V2",
-    "SCCACHE_GHA_ENABLED",
-    "SCCACHE_GHA_CACHE_TO",
-    "SCCACHE_GHA_CACHE_FROM"
 ]
 skip = "*-musllinux_*"
 manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64"
@@ -80,15 +72,18 @@ manylinux-aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64"
 [tool.cibuildwheel.linux.environment]
 BOOST_LIBRARYDIR = "/usr/lib64/boost1.78"
 BOOST_INCLUDEDIR = "/usr/include/boost1.78"
-CMAKE_C_COMPILER_LAUNCHER = "sccache"
-CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
+CCACHE_DIR = "/project/.ccache"
+CCACHE_MAXSIZE = "1G"
+CCACHE_COMPRESS = "true"
+CMAKE_C_COMPILER_LAUNCHER = "ccache"
+CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 
 # ---------------------------------------------------------------------------
 # macOS
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel.macos]
 repair-wheel-command = "./scripts/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}"
-before-build = "sccache --show-stats 2>/dev/null | grep -E 'requests|hits|misses|rate' || true"
+before-build = "ccache --show-stats 2>/dev/null | grep -E 'Hits|Misses|hit rate' || true"
 # NOTE: unlike Linux, cibuildwheel on macOS runs directly on the host (no
 # container). Anything in `before-all` would mutate the host, so we keep
 # this minimal and expect build dependencies (boost, hdf5, gsl, lapack,
@@ -99,13 +94,7 @@ before-all = [
     "python -m setuptools_scm --force-write-version-files",
 ]
 environment-pass = [
-    "ACTIONS_RESULTS_URL",
-    "ACTIONS_RUNTIME_TOKEN",
-    "ACTIONS_CACHE_SERVICE_V2",
-    "MACOSX_DEPLOYMENT_TARGET",
-    "SCCACHE_GHA_ENABLED",
-    "SCCACHE_GHA_CACHE_TO",
-    "SCCACHE_GHA_CACHE_FROM"
+    "MACOSX_DEPLOYMENT_TARGET"
 ]
 
 [tool.cibuildwheel.macos.environment]
@@ -125,10 +114,10 @@ FC = "$(brew --prefix)/bin/gfortran"
 # Ensure Homebrew's bin is on PATH so CMake (and other tools) can find
 # Homebrew-installed binaries inside cibuildwheel's build-isolation env.
 PATH = "$(brew --prefix)/bin:$PATH"
-# sccache compiler launchers — sccache auto-detects the GHA cache backend
-# when SCCACHE_GHA_ENABLED=true (set by CI), otherwise uses local disk cache.
-CMAKE_C_COMPILER_LAUNCHER = "sccache"
-CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
+# ccache compiler launchers — ccache uses local disk cache, persisted
+# across CI runs via actions/cache.
+CMAKE_C_COMPILER_LAUNCHER = "ccache"
+CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 # NOTE: We deliberately do NOT pin MACOSX_DEPLOYMENT_TARGET here. Homebrew
 # bottles are built for the runner's macOS version, so forcing an older
 # deployment target than the bottles causes delocate to refuse the wheel

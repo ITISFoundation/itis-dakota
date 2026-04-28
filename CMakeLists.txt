@@ -13,10 +13,10 @@ add_compile_definitions(BOOST_BIND_GLOBAL_PLACEHOLDERS)
 add_subdirectory(dakota EXCLUDE_FROM_ALL)
 
 # Freeze __DATE__, __TIME__, and QUESO_BUILD_DATE to constant strings so
-# sccache can cache QUESO object files across rebuilds (~150 files).
+# ccache can cache QUESO object files across rebuilds (~150 files).
 # Without this, every QUESO .C file expands __DATE__/__TIME__ via assert
 # macros in asserts.h / Defines.h, producing unique preprocessed output
-# on every build and defeating sccache's preprocessor-mode hashing.
+# on every build and defeating ccache's hashing.
 target_compile_options(queso PRIVATE -Wno-builtin-macro-redefined)
 target_compile_definitions(queso PRIVATE
   __DATE__="Dakota 6.23"

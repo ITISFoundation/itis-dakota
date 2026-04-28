@@ -101,48 +101,29 @@ jobs:
           if [ ! -d dakota/.git ]; then
             make get-dakota-src
           fi
-      - name: Configure sccache for cibuildwheel
-        uses: mozilla-actions/sccache-action@v0.0.10
+      - name: Restore ccache
+        uses: actions/cache@v5
         with:
-          # Disable host-side annotations: sccache runs inside the
-          # manylinux container, so the host sees 0/0/0.
-          disable_annotations: "true"
+          path: .ccache
+          key: ccache-linux-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: ccache-linux-${{ matrix.arch }}-
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
-          SCCACHE_GHA_ENABLED: "true"
-          SCCACHE_GHA_CACHE_TO: sccache-linux-${{ matrix.arch }}
-          SCCACHE_GHA_CACHE_FROM: sccache-linux-${{ matrix.arch }}
-      - name: Show sccache stats
+      - name: Show ccache stats
         if: always()
         run: |
-          echo "Looking for sccache stats files..."
-          ls -la sccache_stats.* 2>/dev/null || echo "No sccache_stats files found in $(pwd)"
-          find . -name 'sccache_stats*' -maxdepth 3 2>/dev/null || true
-          if [ -f sccache_stats.json ]; then
-            HITS=$(jq '[.stats.cache_hits.counts[]] | add // 0' sccache_stats.json)
-            MISSES=$(jq '[.stats.cache_misses.counts[]] | add // 0' sccache_stats.json)
-            ERRORS=$(jq '[.stats.cache_errors.counts[]] | add // 0' sccache_stats.json)
-            TOTAL=$((HITS + MISSES + ERRORS))
-            if [ "$TOTAL" -gt 0 ]; then RATE=$((HITS * 100 / TOTAL)); else RATE=0; fi
-            echo "::notice title=sccache stats - ${{ github.job }}::${RATE}% - ${HITS} hits, ${MISSES} misses, ${ERRORS} errors"
-            echo "## sccache stats" >> $GITHUB_STEP_SUMMARY
-            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| Cache hit % | ${RATE}% |" >> $GITHUB_STEP_SUMMARY
-            echo "| Cache hits | ${HITS} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Cache misses | ${MISSES} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Cache errors | ${ERRORS} |" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "<details><summary>Full stats</summary>" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f ccache_stats.txt ]; then
+            echo "## ccache stats" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            cat sccache_stats.txt 2>/dev/null >> $GITHUB_STEP_SUMMARY
+            cat ccache_stats.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            # Extract hit rate for annotation (awk is portable across Linux/macOS)
+            RATE=$(awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' ccache_stats.txt | tail -1)
+            echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
           else
-            echo "::notice title=sccache stats - ${{ github.job }}::No sccache stats found (build may have failed before stats were collected)"
+            echo "::notice title=ccache stats - ${{ github.job }}::No ccache stats found"
           fi
       - name: Run tests
         run: |
@@ -212,18 +193,30 @@ jobs:
         run: |
           MAC_MAJOR=$(sw_vers -productVersion | cut -d. -f1).0
           echo "MACOSX_DEPLOYMENT_TARGET=$MAC_MAJOR" >> "$GITHUB_ENV"
-      - name: Configure sccache for cibuildwheel
-        uses: mozilla-actions/sccache-action@v0.0.10
+      - name: Restore ccache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/ccache
+          key: ccache-macos-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: ccache-macos-${{ matrix.arch }}-
+      - name: Zero ccache stats
+        run: ccache --zero-stats
       # Build all 5 Python versions sequentially on this single runner.
-      # sccache caches ~1200/1458 C++ objects across Python versions
+      # ccache caches ~1200/1458 C++ objects across Python versions
       # (only ~260 Python-dependent files recompile each time).
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
-          SCCACHE_GHA_ENABLED: "true"
-          SCCACHE_GHA_CACHE_TO: sccache-macos-${{ matrix.arch }}
-          SCCACHE_GHA_CACHE_FROM: sccache-macos-${{ matrix.arch }}
+      - name: Show ccache stats
+        if: always()
+        run: |
+          echo "## ccache stats" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ccache --show-stats >> $GITHUB_STEP_SUMMARY 2>&1
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          RATE=$(ccache --show-stats 2>/dev/null | awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' | tail -1)
+          echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
       - name: Run tests
         run: |
           pip install pytest
