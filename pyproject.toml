@@ -88,6 +88,7 @@ CMAKE_CXX_COMPILER_LAUNCHER = "sccache"
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel.macos]
 repair-wheel-command = "./scripts/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}"
+before-build = "sccache --show-stats 2>/dev/null | grep -E 'requests|hits|misses|rate' || true"
 # NOTE: unlike Linux, cibuildwheel on macOS runs directly on the host (no
 # container). Anything in `before-all` would mutate the host, so we keep
 # this minimal and expect build dependencies (boost, hdf5, gsl, lapack,
