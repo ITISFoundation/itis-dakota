@@ -87,5 +87,18 @@ cd "${WHEEL_NAME}"
 zip -r "${WHEEL_NAME}.whl" *
 mv "${WHEEL_NAME}.whl" ..
 
+# Step 8: Verify the wheel is a valid zip
+cd "${DEST_DIR}"
+python3 -c "
+import zipfile, sys
+whl = '${WHEEL_NAME}.whl'
+z = zipfile.ZipFile(whl)
+bad = z.testzip()
+if bad:
+    print(f'ERROR: Wheel zip is corrupted, first bad entry: {bad}', file=sys.stderr)
+    sys.exit(1)
+print(f'Wheel zip verification passed: {whl}')
+"
+
 # Cleanup
 rm -rf "${TMPDIR}"

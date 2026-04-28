@@ -149,18 +149,36 @@ jobs:
           path: ./wheelhouse/*.whl
 
   wheels-macos:
-    name: Build wheels on macos ${{ matrix.arch }}
+    name: Build wheels on macos ${{ matrix.name }}
     runs-on: ${{ matrix.github-runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: x86_64
+          - name: "x86_64 (1/2)"
+            arch: x86_64
             github-runner: "macos-15-intel"
             wheel-platform: "x86_64"
-          - arch: arm64
+            cibw-build: "cp310-* cp311-*"
+            group: "1"
+            test-python: "3.11"
+            test-cp: "cp311"
+          - name: "x86_64 (2/2)"
+            arch: x86_64
+            github-runner: "macos-15-intel"
+            wheel-platform: "x86_64"
+            cibw-build: "cp312-* cp313-* cp314-*"
+            group: "2"
+            test-python: "3.14"
+            test-cp: "cp314"
+          - name: "arm64"
+            arch: arm64
             github-runner: "macos-14"
             wheel-platform: "arm64"
+            cibw-build: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+            group: "all"
+            test-python: "3.14"
+            test-cp: "cp314"
 
     permissions:
       contents: write
@@ -178,7 +196,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: ${{ matrix.test-python }}
           cache: "pip"
       - name: Cache Dakota source
         uses: actions/cache@v5
@@ -213,12 +231,9 @@ jobs:
           restore-keys: ccache-macos-${{ matrix.arch }}-
       - name: Zero ccache stats
         run: ccache --zero-stats
-      # Build all 5 Python versions sequentially on this single runner.
-      # ccache caches ~1200/1458 C++ objects across Python versions
-      # (only ~260 Python-dependent files recompile each time).
       - uses: pypa/cibuildwheel@v3.4.1
         env:
-          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+          CIBW_BUILD: ${{ matrix.cibw-build }}
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
       - name: Show ccache stats
         if: always()
@@ -232,12 +247,12 @@ jobs:
       - name: Run tests
         run: |
           pip install pytest
-          pip install ./wheelhouse/itis_dakota*cp314*.whl
+          pip install ./wheelhouse/itis_dakota*${{ matrix.test-cp }}*.whl
           pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
-          name: wheels-macos-${{ matrix.wheel-platform }}
+          name: wheels-macos-${{ matrix.wheel-platform }}-${{ matrix.group }}
           path: ./wheelhouse/*.whl
 
   test:
@@ -259,11 +274,11 @@ jobs:
           - os: macos
             arch: x86_64
             github-runner: "macos-15-intel"
-            artifact: "wheels-macos-x86_64"
+            artifact: "wheels-macos-x86_64-2"
           - os: macos
             arch: arm64
             github-runner: "macos-14"
-            artifact: "wheels-macos-arm64"
+            artifact: "wheels-macos-arm64-all"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
