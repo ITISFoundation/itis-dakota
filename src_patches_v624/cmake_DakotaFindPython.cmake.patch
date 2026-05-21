@@ -1,0 +1,24 @@
+diff --git a/cmake/DakotaFindPython.cmake b/cmake/DakotaFindPython.cmake
+index 5de55ced3..12c957de3 100644
+--- a/cmake/DakotaFindPython.cmake
++++ b/cmake/DakotaFindPython.cmake
+@@ -34,6 +34,19 @@ macro(dakota_find_python)
+       find_package(Python3 REQUIRED ${dakota_python_components})
+     endif()
+ 
++    # Set Python_* aliases for Python3_* variables for compatibility
++    # (Do not set Python_FOUND to avoid interfering with pybind11's find_package(Python))
++    set(Python_EXECUTABLE ${Python3_EXECUTABLE})
++    set(Python_INCLUDE_DIRS ${Python3_INCLUDE_DIRS})
++    set(Python_LIBRARIES ${Python3_LIBRARIES})
++    set(Python_VERSION ${Python3_VERSION})
++    set(Python_NumPy_INCLUDE_DIRS ${Python3_NumPy_INCLUDE_DIRS})
++    set(Python_NumPy_VERSION ${Python3_NumPy_VERSION})
++
++    message(STATUS "Python3 found: ${Python3_EXECUTABLE}")
++    message(STATUS "Python3_INCLUDE_DIRS: ${Python3_INCLUDE_DIRS}")
++    message(STATUS "Python3_LIBRARIES: ${Python3_LIBRARIES}")
++
+     if (DAKOTA_PYTHON_DIRECT_INTERFACE_NUMPY)
+ 	message(STATUS "NumPy version ${Python_NumPy_VERSION} found at ${Python_NumPy_INCLUDE_DIRS}")
+     endif()
