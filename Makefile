@@ -60,5 +60,5 @@ get-dakota-src:
 	cd dakota && \
 		git submodule update --init packages/external && \
 		git submodule update --init packages/pecos && \
-		git submodule update --init packages/surfpack && \
+		git clone --depth 1 https://github.com/snl-dakota/surfpack.git packages/surfpack && \
 		git apply --whitespace=nowarn ../src_patches_v624/*.patch
