@@ -1,0 +1,57 @@
+{
+    "environment": {
+        "tabular_data": {
+            "tabular_data_file": "dakota_tabular.dat"
+        },
+        "top_method_pointer": "SAMPLING"
+    },
+    "method": [{
+        "sampling": {
+            "id_method": "SAMPLING",
+            "sample_type": {"lhs": {}},
+            "samples": 10,
+            "model_pointer": "TRUE_MODEL",
+            "seed": 1234
+        }
+    }],
+    "model": [{
+        "single": {
+            "id_model": "TRUE_MODEL",
+            "interface_pointer": "INTERFACE",
+            "variables_pointer": "VARIABLES",
+            "responses_pointer": "RESPONSES"
+        }
+    }],
+    "variables": [{
+        "id_variables": "VARIABLES",
+        "active": {"all": true},
+        "continuous_design": {
+            "count": 2,
+            "descriptors": ["PARAM1", "PARAM2"],
+            "initial_point": [0.5, 1.0],
+            "lower_bounds": [0.0, 0.0],
+            "upper_bounds": [1.0, 2.0]
+        }
+    }],
+    "interface": [{
+        "id_interface": "INTERFACE",
+        "analysis_drivers": {
+            "drivers": ["evaluator"],
+            "interface_type": {
+                "python": {}
+            }
+        },
+        "failure_capture": {
+            "recover": ["NaN", "NaN"]
+        }
+    }],
+    "responses": [{
+        "id_responses": "RESPONSES",
+        "descriptors": ["OBJ1", "OBJ2"],
+        "response_type": {
+            "objective_functions": {"count": 2}
+        },
+        "gradient_type": {"no_gradients": true},
+        "hessian_type": {"no_hessians": true}
+    }]
+}

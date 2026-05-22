@@ -56,9 +56,9 @@ cache-clean:
 
 get-dakota-src:
 	rm -rf dakota
-	git clone -j4 --branch v6.23.0 --depth 1 https://github.com/snl-dakota/dakota.git
+	git clone -j4 --branch v6.24.0 --depth 1 https://github.com/snl-dakota/dakota.git
 	cd dakota && \
 		git submodule update --init packages/external && \
 		git submodule update --init packages/pecos && \
-		git submodule update --init packages/surfpack && \
-		git apply --whitespace=nowarn ../src_patches_v623/*.patch
+		git clone --depth 1 https://github.com/snl-dakota/surfpack.git packages/surfpack && \
+		git apply --whitespace=nowarn ../src_patches_v624/*.patch

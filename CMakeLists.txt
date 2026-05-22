@@ -10,6 +10,10 @@ set(PY_BUILD_CMAKE_LIB_DIRECTORY ${PY_BUILD_CMAKE_PACKAGE_NAME}-${PY_BUILD_CMAKE
 add_compile_options(-w)
 # add_compile_options(-Wno-psabi)
 add_compile_definitions(BOOST_BIND_GLOBAL_PLACEHOLDERS)
+
+set(DAKOTA_SCHEMA_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dakota/src/dakota.json CACHE STRING "Dakota Schema file")
+set(DAKOTA_XML_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/dakota/src/dakota.xml CACHE STRING "Dakota XML grammar file")
+
 add_subdirectory(dakota EXCLUDE_FROM_ALL)
 
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
