@@ -1,0 +1,52 @@
+{
+    "environment": {
+        "tabular_data": {
+            "tabular_data_file": "dakota_tabular.dat"
+        },
+        "top_method_pointer": "MULTIOBJ_OPTIMIZATION"
+    },
+    "method": [{
+        "moga": {
+            "id_method": "MULTIOBJ_OPTIMIZATION",
+            "model_pointer": "TRUE_MODEL",
+            "seed": 1234,
+            "max_function_evaluations": 100
+        }
+    }],
+    "model": [{
+        "single": {
+            "id_model": "TRUE_MODEL",
+            "interface_pointer": "INTERFACE",
+            "variables_pointer": "VARIABLES",
+            "responses_pointer": "RESPONSES"
+        }
+    }],
+    "variables": [{
+        "id_variables": "VARIABLES",
+        "continuous_design": {
+            "count": 3,
+            "descriptors": ["PARAM1", "PARAM2", "PARAM3"],
+            "initial_point": [2.0, 3.0, 4.0],
+            "lower_bounds": [0.0, 0.0, 0.0],
+            "upper_bounds": [10.0, 10.0, 10.0]
+        }
+    }],
+    "interface": [{
+        "id_interface": "INTERFACE",
+        "analysis_drivers": {
+            "drivers": ["evaluator"],
+            "interface_type": {
+                "python": {}
+            }
+        }
+    }],
+    "responses": [{
+        "id_responses": "RESPONSES",
+        "descriptors": ["OBJ1", "OBJ2"],
+        "response_type": {
+            "objective_functions": {"count": 2}
+        },
+        "gradient_type": {"no_gradients": true},
+        "hessian_type": {"no_hessians": true}
+    }]
+}
