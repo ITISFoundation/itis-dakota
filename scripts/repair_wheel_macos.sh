@@ -173,10 +173,16 @@ def _main():
 
     tmpdir = None
     if python_lib:
-        tmpdir = tempfile.mkdtemp(prefix="itis_dakota_")
-        link_path = os.path.join(tmpdir, "Python")
-        os.symlink(python_lib, link_path)
-        extra_paths.insert(0, tmpdir)
+        # Use a fixed per-user runtime directory to avoid accumulating temp dirs.
+        runtime_dir = os.path.join(tempfile.gettempdir(), f"itis_dakota_{os.getuid()}")
+        os.makedirs(runtime_dir, exist_ok=True)
+        link_path = os.path.join(runtime_dir, "Python")
+        # Recreate symlink if target changed (e.g. different Python version).
+        if os.path.islink(link_path) and os.readlink(link_path) != python_lib:
+            os.unlink(link_path)
+        if not os.path.exists(link_path):
+            os.symlink(python_lib, link_path)
+        extra_paths.insert(0, runtime_dir)
 
     current = os.environ.get("DYLD_LIBRARY_PATH", "")
     if extra_paths:
@@ -185,8 +191,6 @@ def _main():
             new_val = new_val + ":" + current
         os.environ["DYLD_LIBRARY_PATH"] = new_val
 
-    # exec replaces this process; the tmpdir will be cleaned up by the OS
-    # when the process exits (it only contains a single symlink).
     os.execv(binary, [binary] + sys.argv[1:])
 
 

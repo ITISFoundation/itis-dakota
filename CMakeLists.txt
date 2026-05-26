@@ -23,16 +23,16 @@ add_subdirectory(dakota EXCLUDE_FROM_ALL)
 # on every build and defeating ccache's hashing.
 target_compile_options(queso PRIVATE -Wno-builtin-macro-redefined)
 target_compile_definitions(queso PRIVATE
-  __DATE__="Dakota 6.23"
+  __DATE__="Dakota 6.24"
   __TIME__="00:00:00"
-  QUESO_BUILD_DATE="Dakota 6.23"
+  QUESO_BUILD_DATE="Dakota 6.24"
 )
 
 # Same for dakota_src: DakotaBuildInfo.hpp uses __DATE__/__TIME__ inline,
 # affecting ~9 files (OutputManager, RestartVersion, dakota_python, etc.)
 target_compile_options(dakota_src PRIVATE -Wno-builtin-macro-redefined)
 target_compile_definitions(dakota_src PRIVATE
-  __DATE__="Dakota 6.23"
+  __DATE__="Dakota 6.24"
   __TIME__="00:00:00"
 )
 
