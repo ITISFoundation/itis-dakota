@@ -60,7 +60,7 @@ before-all = [
     "yum install -y epel-release yum-utils",
     "yum-config-manager --enable epel",
     "yum makecache --refresh",
-    "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip wget gsl-devel ccache ninja-build",
+    "yum install -y lapack-devel boost1.78-devel blas-devel hdf5-devel zip unzip wget gsl-devel ccache ninja-build perl-JSON-PP",
     "ccache --version",
     "ccache --zero-stats",
     "pip install setuptools_scm",
