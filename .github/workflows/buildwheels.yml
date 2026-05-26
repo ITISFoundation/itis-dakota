@@ -13,9 +13,12 @@ on:
       - "Makefile"
       - ".github/workflows/buildwheels.yml"
   push:
-    branches: [ master ]
+    branches: [master]
   schedule:
     - cron: "5 0 * * 0"
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -58,8 +61,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
-        arch: [ "x86_64", "arm64" ]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        arch: ["x86_64", "arm64"]
         include:
           - arch: x86_64
             github-runner: "ubuntu-24.04"
@@ -324,7 +327,7 @@ jobs:
 
   test:
     name: Test wheel on ${{ matrix.os }} ${{ matrix.arch }}
-    needs: [ wheels-linux, wheels-macos ]
+    needs: [wheels-linux, wheels-macos]
     runs-on: ${{ matrix.github-runner }}
     strategy:
       fail-fast: false
