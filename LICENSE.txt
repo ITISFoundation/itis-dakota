@@ -1,6 +1,6 @@
 Copyright (C) IT'IS Foundation - All Rights Reserved
 
-Written by Werner Van Geit <vangeit at itis.swiss>, 2023
+Written by Werner Van Geit <vangeit at itis.swiss>, 2023-2026
 
 Unless required by applicable law or agreed to in writing, 
 Licensor provides the Work (and each Contributor provides 

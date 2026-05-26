@@ -2,9 +2,23 @@ name: "buildwheels"
 
 on:
   pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "pyproject.toml"
+      - "build_backend/**"
+      - "src_patches_v624/**"
+      - "scripts/**"
+      - "itis_dakota/**"
+      - "tests/**"
+      - "Makefile"
+      - ".github/workflows/buildwheels.yml"
   push:
+    branches: [master]
   schedule:
     - cron: "5 0 * * 0"
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -41,14 +55,14 @@ jobs:
           DEFAULT_BUMP: patch
           CUSTOM_TAG: ${{ steps.custom_version.outputs.tag }}
 
-  wheels:
-    name: Build wheel on ${{ matrix.python }} ${{ matrix.arch }}
+  wheels-linux:
+    name: Build wheel on linux ${{ matrix.python }} ${{ matrix.arch }}
     runs-on: ${{ matrix.github-runner }}
     strategy:
       fail-fast: false
       matrix:
-        python: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
-        arch: [ "x86_64", "arm64" ]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        arch: ["x86_64", "arm64"]
         include:
           - arch: x86_64
             github-runner: "ubuntu-24.04"
@@ -80,25 +94,276 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
+      - name: Cache Dakota source
+        uses: actions/cache@v5
+        with:
+          path: dakota
+          key: dakota-src-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
       - name: Get dakota src
-        run: make get-dakota-src
-      - name: Configure sccache for cibuildwheel
-        uses: mozilla-actions/sccache-action@v0.0.10
+        run: |
+          if [ ! -d dakota/.git ]; then
+            make get-dakota-src
+          fi
+      - name: Restore ccache
+        uses: actions/cache@v5
+        with:
+          path: .ccache
+          key: ccache-linux-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: ccache-linux-${{ matrix.arch }}-
+      - name: Ensure ccache dir exists
+        run: mkdir -p .ccache .cibw_wheels_safe
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
+          CIBW_CONTAINER_ENGINE: >-
+            docker; create_args: --mount type=bind,source=${{ github.workspace
+            }}/.ccache,target=/project/.ccache --mount type=bind,source=${{
+            github.workspace
+            }}/.cibw_wheels_safe,target=/project/.cibw_wheels_safe
+      - name: Verify wheel integrity
+        # Docker Desktop on macOS sometimes corrupts wheels via `docker cp`
+        # from the cibuildwheel container (intermittent BadCRC). repair_wheel.sh
+        # writes a duplicate via the project bind-mount at .cibw_wheels_safe/
+        # which uses virtiofs reliably. If the wheelhouse copy is corrupted,
+        # swap in the safe copy. On native Linux runners both are identical.
+        run: |
+          python3 - <<'PY'
+          import zipfile, glob, sys, os, shutil
+          failed = False
+          for whl in sorted(glob.glob('wheelhouse/*.whl')):
+              try:
+                  with zipfile.ZipFile(whl) as zf:
+                      bad = zf.testzip()
+              except zipfile.BadZipFile as e:
+                  bad = str(e)
+              if not bad:
+                  with zipfile.ZipFile(whl) as zf:
+                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
+                  continue
+              safe = os.path.join('.cibw_wheels_safe', os.path.basename(whl))
+              print(f'CORRUPTED: {whl} (issue: {bad})', file=sys.stderr)
+              if os.path.exists(safe):
+                  try:
+                      with zipfile.ZipFile(safe) as zf:
+                          if zf.testzip() is None:
+                              shutil.copyfile(safe, whl)
+                              print(f'RECOVERED: replaced {whl} from {safe}')
+                              continue
+                  except zipfile.BadZipFile:
+                      pass
+                  print(f'  safe copy also corrupted: {safe}', file=sys.stderr)
+              else:
+                  print(f'  no safe copy at {safe}', file=sys.stderr)
+              failed = True
+          if failed:
+              sys.exit(1)
+          PY
+      - name: Show ccache stats
+        if: always()
+        run: |
+          # ccache ran inside the manylinux container but CCACHE_DIR pointed
+          # to /project/.ccache which is bind-mounted to $PWD/.ccache on host.
+          # Install ccache on the host to read the stats db.
+          # Install ccache on the host to read the stats db.
+          if ! command -v ccache &>/dev/null; then
+            sudo apt-get install -y -qq ccache >/dev/null 2>&1 || true
+          fi
+          if command -v ccache &>/dev/null && [ -d .ccache ]; then
+            STATS=$(CCACHE_DIR="$PWD/.ccache" ccache --show-stats 2>&1) || true
+          elif [ -d .ccache ]; then
+            STATS="ccache not available on host; cache dir exists ($(du -sh .ccache | cut -f1))"
+          else
+            STATS="No .ccache directory found"
+          fi
+          echo "## ccache stats" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$STATS" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          RATE=$(echo "$STATS" | awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' | tail -1)
+          echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
       - name: Run tests
         run: |
           pip install pytest
-          pip install ./wheelhouse/itis_dakota*.whl
+          # --force-reinstall ensures the just-built wheel is actually
+          # installed (otherwise pip skips when the same version is
+          # already present from a prior run, e.g. cached test runners
+          # or local `act` runs).
+          pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*.whl
+          pip install numpy
           pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
-          name: wheels-${{ matrix.os }}-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform
-            }}
+          name: wheels-linux-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform }}
           path: ./wheelhouse/*.whl
+
+  wheels-macos:
+    name: Build wheels on macos ${{ matrix.name }}
+    runs-on: ${{ matrix.github-runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "x86_64 (1/2)"
+            arch: x86_64
+            github-runner: "macos-15-intel"
+            wheel-platform: "x86_64"
+            cibw-build: "cp310-* cp311-*"
+            group: "1"
+            test-python: "3.11"
+            test-cp: "cp311"
+          - name: "x86_64 (2/2)"
+            arch: x86_64
+            github-runner: "macos-15-intel"
+            wheel-platform: "x86_64"
+            cibw-build: "cp312-* cp313-* cp314-*"
+            group: "2"
+            test-python: "3.14"
+            test-cp: "cp314"
+          - name: "arm64"
+            arch: arm64
+            github-runner: "macos-14"
+            wheel-platform: "arm64"
+            cibw-build: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+            group: "all"
+            test-python: "3.14"
+            test-cp: "cp314"
+
+    permissions:
+      contents: write
+    needs: tag
+    steps:
+      - uses: actions/checkout@v6
+        if: github.ref != 'refs/heads/master'
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v6
+        if: github.ref == 'refs/heads/master'
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.tag.outputs.new_tag }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.test-python }}
+          cache: "pip"
+      - name: Cache Dakota source
+        uses: actions/cache@v5
+        with:
+          path: dakota
+          key: dakota-src-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
+      - name: Get dakota src
+        run: |
+          if [ ! -d dakota/.git ]; then
+            make get-dakota-src
+          fi
+      - name: Cache Homebrew packages
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: brew-${{ matrix.arch }}-${{ hashFiles('Makefile') }}
+          restore-keys: brew-${{ matrix.arch }}-
+      - name: Install macOS build dependencies (Homebrew)
+        run: make brew-deps
+      - name: Set MACOSX_DEPLOYMENT_TARGET from runner
+        # cibuildwheel's default (10.13/11.0) is older than the Homebrew
+        # bottles installed on the runner, which makes delocate refuse to
+        # bundle them. Pin to the runner's major macOS version.
+        run: |
+          MAC_MAJOR=$(sw_vers -productVersion | cut -d. -f1).0
+          echo "MACOSX_DEPLOYMENT_TARGET=$MAC_MAJOR" >> "$GITHUB_ENV"
+      - name: Restore ccache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/ccache
+          key: ccache-macos-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: ccache-macos-${{ matrix.arch }}-
+      - name: Zero ccache stats
+        run: ccache --zero-stats
+      - uses: pypa/cibuildwheel@v3.4.1
+        env:
+          CIBW_BUILD: ${{ matrix.cibw-build }}
+          CIBW_ARCHS: ${{ matrix.wheel-platform }}
+      - name: Verify wheel integrity
+        run: |
+          python3 - <<'PY'
+          import zipfile, glob, sys
+          failed = False
+          for whl in sorted(glob.glob('wheelhouse/*.whl')):
+              with zipfile.ZipFile(whl) as zf:
+                  bad = zf.testzip()
+                  if bad:
+                      print(f'CORRUPTED: {whl} (first bad entry: {bad})', file=sys.stderr)
+                      failed = True
+                  else:
+                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
+          if failed:
+              sys.exit(1)
+          PY
+      - name: Show ccache stats
+        if: always()
+        run: |
+          echo "## ccache stats" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ccache --show-stats >> $GITHUB_STEP_SUMMARY 2>&1
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          RATE=$(ccache --show-stats 2>/dev/null | awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' | tail -1)
+          echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
+      - name: Run tests
+        run: |
+          pip install pytest
+          # --force-reinstall ensures the just-built wheel is actually
+          # installed (otherwise pip skips when the same version is
+          # already present from a prior run).
+          pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*${{ matrix.test-cp }}*.whl
+          pip install numpy
+          pytest
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheels-macos-${{ matrix.wheel-platform }}-${{ matrix.group }}
+          path: ./wheelhouse/*.whl
+
+  test:
+    name: Test wheel on ${{ matrix.os }} ${{ matrix.arch }}
+    needs: [wheels-linux, wheels-macos]
+    runs-on: ${{ matrix.github-runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: x86_64
+            github-runner: "ubuntu-24.04"
+            artifact: "wheels-linux-cp314_x86_64"
+          - os: linux
+            arch: arm64
+            github-runner: "ubuntu-24.04-arm"
+            artifact: "wheels-linux-cp314_aarch64"
+          - os: macos
+            arch: x86_64
+            github-runner: "macos-15-intel"
+            artifact: "wheels-macos-x86_64-2"
+          - os: macos
+            arch: arm64
+            github-runner: "macos-14"
+            artifact: "wheels-macos-arm64-all"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: wheelhouse
+      - name: Install wheel and run tests
+        run: |
+          pip install pytest
+          pip install --force-reinstall --no-deps wheelhouse/*cp314*.whl
+          pip install numpy
+          pytest
 
   release:
     name: Create new github release
@@ -108,18 +373,24 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs:
       - tag
-      - wheels
+      - test
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ needs.tag.outputs.new_tag }}
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
       - name: Create a GitHub release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ needs.tag.outputs.new_tag }}
           generateReleaseNotes: true
-          artifacts: wheels-*
+          artifacts: dist/*.whl
 
   test-pypi:
     name: Publish wheels on Test PyPI

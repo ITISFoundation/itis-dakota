@@ -41,4 +41,4 @@ Building the wheel
 make wheel
 ```
 
-Copyright (c) 2023-2024 IT'IS Foundation, Zurich, Switzerland
+Copyright (c) 2023-2026 IT'IS Foundation, Zurich, Switzerland
