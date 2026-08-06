@@ -14,6 +14,7 @@
 
 set -ex
 
+PROJECT_ROOT="$(pwd)"
 DEST_DIR=$1
 ORIG_WHEEL=$2
 
@@ -27,6 +28,8 @@ ORIG_BINARY=$(find "${TMPDIR}" -path "*.data/scripts/dakota" -type f | head -1)
 if [ -z "${ORIG_BINARY}" ]; then
     echo "No dakota binary found in wheel, running standard repair"
     auditwheel repair -w "${DEST_DIR}" "${ORIG_WHEEL}"
+    REPAIRED_WHEEL=$(ls "${DEST_DIR}"/*.whl | head -n1)
+    python3 "${PROJECT_ROOT}/scripts/augment_sbom.py" --wheel "${REPAIRED_WHEEL}" --repo-root "${PROJECT_ROOT}"
     rm -rf "${TMPDIR}"
     exit 0
 fi
@@ -100,21 +103,10 @@ with zipfile.ZipFile(whl) as zf:
     print(f"Wheel zip verification passed for {whl}")
 PYEOF
 
-# Step 9: Workaround for Docker Desktop on macOS / docker-cp page-cache
-# inconsistency. After cibuildwheel's `repair_wheel` finishes, it runs
-# `docker cp container:/output/. host_dir` to extract the wheel — and on
-# Docker Desktop for Mac this transports stale bytes intermittently
-# (BadZipFile / bad CRC at install time) even after fsync+sync. The
-# corruption is non-deterministic; in-container `drop_caches` does not
-# help because the stale pages live in Docker Desktop's HOST-side virtio
-# cache, not the container's.
-#
-# Workaround: also write the wheel directly through the project bind
-# mount at /project/.cibw_wheels_safe/. Bind-mounted writes go through
-# virtiofs/9p directly (same path ccache writes use reliably), so they
-# land on the host with the correct bytes. The workflow's host-side
-# verification step swaps in the safe copy if the docker-cp wheel is
-# corrupted.
+# Step 9: Augment the embedded SBOM with numpy + vendored source components
+python3 "${PROJECT_ROOT}/scripts/augment_sbom.py" --wheel "${WHEEL_NAME}.whl" --repo-root "${PROJECT_ROOT}"
+
+# Step 10: work around Docker Desktop docker-cp page-cache corruption by also writing through the project bind mount
 python3 -c "import os; fd=os.open('${WHEEL_NAME}.whl', os.O_RDONLY); os.fsync(fd); os.close(fd)"
 sync
 SAFE_DIR=/project/.cibw_wheels_safe
