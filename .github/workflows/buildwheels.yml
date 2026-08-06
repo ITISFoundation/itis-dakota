@@ -225,6 +225,8 @@ jobs:
         run: |
           grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 -o table
           grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 -o sarif --file results.sarif
+      - name: Scan SBOM for vulnerabilities with an available fix
+        run: grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 --only-fixed -o table
       - name: Upload scan results to code scanning
         uses: github/codeql-action/upload-sarif@v4
         with:
