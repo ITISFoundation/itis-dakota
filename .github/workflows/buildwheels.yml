@@ -204,7 +204,6 @@ jobs:
     needs: wheels-linux
     permissions:
       contents: write
-      security-events: write
     steps:
       - uses: actions/checkout@v6
       - name: Download a wheel artifact
@@ -226,17 +225,22 @@ jobs:
           grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 -o table
           grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 -o sarif --file results.sarif
       - name: Scan SBOM for vulnerabilities with an available fix
-        run: grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 --only-fixed -o table
-      - name: Upload scan results to code scanning
-        uses: github/codeql-action/upload-sarif@v4
+        run: grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 --only-fixed --fail-on medium -o table
+      - name: Upload scan report
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
-          sarif_file: results.sarif
-        continue-on-error: true
+          name: grype-sbom-report
+          path: |
+            sbom-for-scan.cdx.json
+            results.sarif
       - name: Submit SBOM to dependency graph
+        if: always()
         run: python3 scripts/submit_sbom_snapshot.py "${WHEEL}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
+
 
   wheels-macos:
     name: Build wheels on macos ${{ matrix.name }}
