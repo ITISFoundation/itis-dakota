@@ -171,16 +171,19 @@ jobs:
           fi
           if command -v ccache &>/dev/null && [ -d .ccache ]; then
             STATS=$(CCACHE_DIR="$PWD/.ccache" ccache --show-stats 2>&1) || true
+            PARSE=$(CCACHE_DIR="$PWD/.ccache" ccache --print-stats 2>/dev/null) || true
           elif [ -d .ccache ]; then
             STATS="ccache not available on host; cache dir exists ($(du -sh .ccache | cut -f1))"
+            PARSE=""
           else
             STATS="No .ccache directory found"
+            PARSE=""
           fi
           echo "## ccache stats" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "$STATS" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          RATE=$(echo "$STATS" | awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' | tail -1)
+          RATE=$(echo "$PARSE" | awk '/^direct_cache_hit/{hits+=$2} /^preprocessed_cache_hit/{hits+=$2} /^cache_miss/{misses+=$2} END{total=hits+misses; if (total>0) printf "%.2f", (hits/total)*100}')
           echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
       - name: Run tests
         run: |
@@ -308,7 +311,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           ccache --show-stats >> $GITHUB_STEP_SUMMARY 2>&1
           echo '```' >> $GITHUB_STEP_SUMMARY
-          RATE=$(ccache --show-stats 2>/dev/null | awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' | tail -1)
+          RATE=$(ccache --print-stats 2>/dev/null | awk '/^direct_cache_hit/{hits+=$2} /^preprocessed_cache_hit/{hits+=$2} /^cache_miss/{misses+=$2} END{total=hits+misses; if (total>0) printf "%.2f", (hits/total)*100}')
           echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
       - name: Run tests
         run: |
