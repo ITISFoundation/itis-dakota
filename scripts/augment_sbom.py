@@ -67,20 +67,12 @@ def vendored_source_component(name: str, path: str, comp_type: str, repo_root: P
     }
 
 
-def numpy_component() -> dict | None:
-    try:
-        import numpy
-    except ImportError:
-        print("augment_sbom: skipping numpy (not importable)", file=sys.stderr)
-        return None
-
-    version = numpy.__version__
-    bom_ref = f"pkg:pypi/numpy@{version}"
+def numpy_component() -> dict:
+    bom_ref = "pkg:pypi/numpy"
     return {
         "type": "library",
         "bom-ref": bom_ref,
         "name": "numpy",
-        "version": version,
         "purl": bom_ref,
         "scope": "required",
     }
