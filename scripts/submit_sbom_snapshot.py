@@ -55,7 +55,7 @@ def submit(repo: str, token: str, payload: dict) -> None:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             print(f"submit_sbom_snapshot: {resp.status} {resp.read().decode()}")
     except urllib.error.HTTPError as exc:
         print(f"submit_sbom_snapshot: {exc.code} {exc.read().decode()}", file=sys.stderr)

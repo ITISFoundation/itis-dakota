@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Add numpy and the vendored Dakota/Pecos/Surfpack/dakota-packages sources to the wheel's embedded auditwheel SBOM, in place."""
+from __future__ import annotations
 
 import argparse
 import json
 import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -32,7 +34,8 @@ def git(repo_path: Path, *args: str) -> str | None:
 
 
 def owner_repo_from_remote(url: str) -> tuple[str, str] | None:
-    url = url.removesuffix(".git")
+    if url.endswith(".git"):
+        url = url[: -len(".git")]
     for sep in ("github.com/", "github.com:"):
         if sep in url:
             owner, _, repo = url.partition(sep)[2].partition("/")
@@ -123,18 +126,22 @@ def main() -> int:
             print(f"augment_sbom: no auditwheel SBOM found in {args.wheel}, skipping", file=sys.stderr)
             return 0
         sbom_name = sbom_names[0]
-        infos = zin.infolist()
-        contents = {info.filename: zin.read(info.filename) for info in infos}
 
-    data = json.loads(contents[sbom_name])
-    data = augment(data, args.repo_root)
-    contents[sbom_name] = json.dumps(data).encode()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workdir = Path(tmpdir)
+        subprocess.run(["unzip", "-q", str(args.wheel), "-d", str(workdir)], check=True)
 
-    tmp_wheel = args.wheel.with_suffix(".whl.tmp")
-    with zipfile.ZipFile(tmp_wheel, "w") as zout:
-        for info in infos:
-            zout.writestr(info, contents[info.filename])
-    tmp_wheel.replace(args.wheel)
+        sbom_path = workdir / sbom_name
+        data = json.loads(sbom_path.read_text(encoding="utf-8"))
+        data = augment(data, args.repo_root)
+        sbom_path.write_text(json.dumps(data), encoding="utf-8")
+
+        if subprocess.run([sys.executable, "-c", "import wheel"], check=False).returncode != 0:
+            subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "wheel"], check=True)
+        subprocess.run(
+            [sys.executable, "-m", "wheel", "pack", "--dest-dir", str(args.wheel.parent), str(workdir)],
+            check=True,
+        )
 
     print(f"augment_sbom: added {len(data['components'])} total components to {sbom_name}")
     return 0

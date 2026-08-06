@@ -8,6 +8,10 @@ UNSCANNABLE_REFS = {"pkg:pypi/numpy"}
 
 
 def main() -> int:
+    if len(sys.argv) != 3:
+        print("usage: sbom_for_scan.py <src-sbom.json> <dst-sbom.json>", file=sys.stderr)
+        return 1
+
     src, dst = sys.argv[1], sys.argv[2]
     with open(src, encoding="utf-8") as f:
         data = json.load(f)

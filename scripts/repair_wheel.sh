@@ -28,7 +28,7 @@ ORIG_BINARY=$(find "${TMPDIR}" -path "*.data/scripts/dakota" -type f | head -1)
 if [ -z "${ORIG_BINARY}" ]; then
     echo "No dakota binary found in wheel, running standard repair"
     auditwheel repair -w "${DEST_DIR}" "${ORIG_WHEEL}"
-    REPAIRED_WHEEL=$(ls "${DEST_DIR}"/*.whl)
+    REPAIRED_WHEEL=$(ls "${DEST_DIR}"/*.whl | head -n1)
     python3 "${PROJECT_ROOT}/scripts/augment_sbom.py" --wheel "${REPAIRED_WHEEL}" --repo-root "${PROJECT_ROOT}"
     rm -rf "${TMPDIR}"
     exit 0
