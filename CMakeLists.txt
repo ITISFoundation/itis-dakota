@@ -66,3 +66,12 @@ install(FILES stubs/dakota/environment/__init__.pyi
               stubs/dakota/environment/py.typed
     COMPONENT dakota_for_python
     DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/)
+
+# Dakota's own Pydantic models for its native JSON input format (the same
+# models that generate dakota.json / drive the C++ JSON parser codegen).
+# Pure Python, no compiled dependency, so it ships as plain source.
+install(DIRECTORY dakota/python/dakota/spec
+    COMPONENT dakota_for_python
+    DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/
+    PATTERN "__pycache__" EXCLUDE
+    PATTERN "*.py[cdo]" EXCLUDE)
