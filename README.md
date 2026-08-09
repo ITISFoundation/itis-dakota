@@ -41,4 +41,21 @@ Building the wheel
 make wheel
 ```
 
+Typing / stubs
+--------------
+
+`dakota.environment` is a compiled pybind11 extension, so its type stubs
+(`stubs/dakota/environment/{__init__.pyi,environment.pyi}`) are generated,
+not hand-written. After bumping the Dakota version or touching
+`dakota/src/dakota_python.cpp` via a patch, rebuild the wheel and
+regenerate the stubs, then commit the result:
+
+```
+make wheel
+make stubs
+```
+
+CI flags (via a warn-only annotation, does not fail the build) if the
+committed stubs no longer match the compiled module.
+
 Copyright (c) 2023-2026 IT'IS Foundation, Zurich, Switzerland

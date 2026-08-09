@@ -60,3 +60,9 @@ install(TARGETS environment
 install(FILES dakota/src/__init__.py
     COMPONENT dakota_for_python
     DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/)
+
+install(FILES stubs/dakota/environment/__init__.pyi
+              stubs/dakota/environment/environment.pyi
+              stubs/dakota/environment/py.typed
+    COMPONENT dakota_for_python
+    DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/)

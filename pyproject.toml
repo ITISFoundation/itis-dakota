@@ -36,6 +36,9 @@ package-dir = {"itis_dakota" = "itis_dakota"}
 [tool.setuptools.package-data]
 itis_dakota = ["py.typed"]
 
+[dependency-groups]
+dev = ["pybind11-stubgen"]
+
 [tool.setuptools_scm]
 version_file = "itis_dakota/_version.py"
 local_scheme = "no-local-version"

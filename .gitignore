@@ -3,12 +3,13 @@ __pycache__
 *.egg-info/
 .py-build-cmake_cache/
 build.sh
-dakota
+/dakota
 dakota_wheel-*
 wheelhouse
 itis_dakota/_version.py
 /wheel
 /.venv
+/.venv-stubs
 /make.log
 /tmp
 /.ccache
