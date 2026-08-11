@@ -104,7 +104,12 @@ DAKOTA_SRC_TARBALL_URL := https://github.com/snl-dakota/dakota/releases/download
 get-dakota-src:
 	rm -rf dakota
 	mkdir dakota
-	curl -sSL "$(DAKOTA_SRC_TARBALL_URL)" | tar xz --strip-components=1 -C dakota
+	# --exclude drops packages/external/eigen3's EIGEN3Config.cmake, a symlink
+	# alias for Eigen3Config.cmake: harmless on case-sensitive filesystems, but
+	# on macOS's case-insensitive one it collides with the real file and can
+	# leave a dangling self-referential symlink in its place, breaking Dakota's
+	# find_package(Eigen3) fallback.
+	curl -sSL "$(DAKOTA_SRC_TARBALL_URL)" | tar xz --strip-components=1 --exclude='*/EIGEN3Config.cmake' -C dakota
 	cd dakota && \
 		for p in ../src_patches_v624/*.patch; do \
 			patch -p1 --no-backup-if-mismatch < "$$p"; \
