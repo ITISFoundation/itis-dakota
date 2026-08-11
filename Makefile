@@ -98,7 +98,9 @@ get-dakota-src:
 	mkdir dakota
 	curl -sSL "$(DAKOTA_SRC_TARBALL_URL)" | tar xz --strip-components=1 -C dakota
 	cd dakota && \
-		git apply --whitespace=nowarn ../src_patches_v624/*.patch
+		for p in ../src_patches_v624/*.patch; do \
+			patch -p1 --no-backup-if-mismatch < "$$p"; \
+		done
 
 # Run the CI wheels-linux job locally via act (nektos/act).
 # Usage:

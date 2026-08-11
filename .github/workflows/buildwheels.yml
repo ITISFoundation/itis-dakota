@@ -101,7 +101,7 @@ jobs:
           key: dakota-src-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
       - name: Get dakota src
         run: |
-          if [ ! -d dakota/.git ]; then
+          if [ ! -f dakota/CMakeLists.txt ]; then
             make get-dakota-src
           fi
       - name: Restore ccache
@@ -255,7 +255,7 @@ jobs:
           key: dakota-src-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
       - name: Get dakota src
         run: |
-          if [ ! -d dakota/.git ]; then
+          if [ ! -f dakota/CMakeLists.txt ]; then
             make get-dakota-src
           fi
       - name: Cache Homebrew packages
