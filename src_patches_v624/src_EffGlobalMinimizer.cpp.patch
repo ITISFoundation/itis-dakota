@@ -1,0 +1,27 @@
+--- a/src/EffGlobalMinimizer.cpp	2026-08-11 15:34:05.564141145 +0200
++++ b/src/EffGlobalMinimizer.cpp	2026-08-11 15:34:05.702609242 +0200
+@@ -539,8 +539,10 @@
+ 			      varsExplorationMap.end());
+     fHatModel->append_approximation(varsAcquisitionMap, truth_resp_map, rebuild);
+ 
+-    // update constraints (truth resp only, not for liar resp)
+-    if (numNonlinearConstraints)
++    // update constraints (truth resp only, not for liar resp). Skipped once
++    // converged: the merit parameters must not advance past the iterate that
++    // extract_best_sample() will select from.
++    if (numNonlinearConstraints && !converged())
+       update_constraints(truth_resp_map);
+   }
+   else {
+@@ -556,8 +558,9 @@
+     IntResponsePair truth_resp_pr(iteratedModel->evaluation_id(), truth_resp);
+     fHatModel->append_approximation(vars_star, truth_resp_pr, rebuild);
+ 
+-    // update constraints (truth resp only, not for liar resp)
+-    if (numNonlinearConstraints)
++    // update constraints (truth resp only, not for liar resp). Skipped once
++    // converged, for the same reason as above.
++    if (numNonlinearConstraints && !converged())
+       update_constraints(truth_resp.function_values());
+   }
+ 
