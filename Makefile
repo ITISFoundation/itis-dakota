@@ -83,14 +83,24 @@ clean:
 cache-clean:
 	rm -rf .py-build-cmake_cache/
 
+DAKOTA_SRC_TARBALL_URL := https://github.com/snl-dakota/dakota/releases/download/v6.24.0/dakota-6.24.0-public-src-cli.tar.gz
+
+# Use Sandia's official "public source" release tarball rather than git+submodules:
+# it vendors packages/external, packages/pecos and packages/surfpack as flat
+# source, pre-resolved to the versions actually shipped in the v6.24.0 release.
+# The git submodule route is unreliable because the packages/surfpack commit
+# pinned by the v6.24.0 tag is not reachable from the public GitHub mirror, forcing
+# a substitution of an older surfpack revision that mismatches the NCSU DIRECT
+# Fortran interface in packages/external (removed cdata/icsize args), causing a
+# segfault in dirheader_() whenever a Kriging/EGO surrogate is built.
 get-dakota-src:
 	rm -rf dakota
-	git clone -j4 --branch v6.24.0 --depth 1 https://github.com/snl-dakota/dakota.git
+	mkdir dakota
+	curl -sSL "$(DAKOTA_SRC_TARBALL_URL)" | tar xz --strip-components=1 -C dakota
 	cd dakota && \
-		git submodule update --init packages/external && \
-		git submodule update --init packages/pecos && \
-		git clone --depth 1 https://github.com/snl-dakota/surfpack.git packages/surfpack && \
-		git apply --whitespace=nowarn ../src_patches_v624/*.patch
+		for p in ../src_patches_v624/*.patch; do \
+			patch -p1 --no-backup-if-mismatch < "$$p"; \
+		done
 
 # Run the CI wheels-linux job locally via act (nektos/act).
 # Usage:
