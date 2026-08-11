@@ -41,6 +41,35 @@ touch "$STUBS_DIR/py.typed"
 # any JSON-serializable Python value) so the stub is actually valid.
 sed -i 's/: json)/: typing.Any)/g' "$STUBS_DIR/environment.pyi"
 
+# pybind11-stubgen can't see through the py::object/py::dict C++ params to
+# the actual callable contract (traced via Pybind11Interface::derived_map_ac:
+# a callback is invoked as callback(kwargs) -> dict, and `callbacks` is
+# dict[str, <that same callable>] keyed by analysis-driver id). Replace the
+# untyped `callback: typing.Any` / bare `callbacks: dict` with a proper
+# Callable alias instead of leaving them as Any / an unparameterized dict.
+"$STUBS_VENV/bin/python" - "$STUBS_DIR/environment.pyi" <<'PYEOF'
+import re, sys
+
+path = sys.argv[1]
+text = open(path).read()
+
+alias = (
+    "DakotaCallback = typing.Callable[[dict[str, typing.Any]], dict[str, typing.Any]]\n"
+    '"""Per-evaluation analysis-driver callback: receives a params dict (variable\n'
+    "values/labels/ASV, either as numpy arrays or lists depending on the\n"
+    '`numpy` interface option) and must return a response dict."""\n'
+)
+marker = "__all__: list[str] = "
+idx = text.index(marker)
+line_end = text.index("\n", idx) + 1
+text = text[:line_end] + alias + text[line_end:]
+
+text = text.replace("callback: typing.Any", "callback: DakotaCallback")
+text = re.sub(r"callbacks: dict(?!\[)", "callbacks: dict[str, DakotaCallback]", text)
+
+open(path, "w").write(text)
+PYEOF
+
 rm -rf "$OUT" "$STUBS_VENV"
 
 echo "Stubs written to $STUBS_DIR/__init__.pyi"

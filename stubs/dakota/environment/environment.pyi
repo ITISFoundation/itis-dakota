@@ -2,6 +2,10 @@ from __future__ import annotations
 import numpy
 import typing
 __all__: list[str] = ['CommandLine', 'Response', 'Variables', 'build_info', 'get_response_fn_val', 'get_variable_values', 'get_variable_values_np', 'print_version', 'revision', 'study', 'version']
+DakotaCallback = typing.Callable[[dict[str, typing.Any]], dict[str, typing.Any]]
+"""Per-evaluation analysis-driver callback: receives a params dict (variable
+values/labels/ASV, either as numpy arrays or lists depending on the
+`numpy` interface option) and must return a response dict."""
 class CommandLine:
     def __init__(self, arg0: str) -> None:
         ...
@@ -23,16 +27,16 @@ class Variables:
         """
 class study:
     @typing.overload
-    def __init__(self, callback: typing.Any, input_string: str, read_restart: str = '') -> None:
+    def __init__(self, callback: DakotaCallback, input_string: str, read_restart: str = '') -> None:
         ...
     @typing.overload
-    def __init__(self, callbacks: dict, input_string: str, read_restart: str = '') -> None:
+    def __init__(self, callbacks: dict[str, DakotaCallback], input_string: str, read_restart: str = '') -> None:
         ...
     @typing.overload
-    def __init__(self, callback: typing.Any, input_json: typing.Any) -> None:
+    def __init__(self, callback: DakotaCallback, input_json: typing.Any) -> None:
         ...
     @typing.overload
-    def __init__(self, callbacks: dict, input_json: typing.Any) -> None:
+    def __init__(self, callbacks: dict[str, DakotaCallback], input_json: typing.Any) -> None:
         ...
     def execute(self) -> None:
         ...

@@ -205,6 +205,27 @@ jobs:
           # Same normalization as scripts/generate_stubs.sh: pybind11-stubgen
           # can't resolve nlohmann::json bindings to a real Python type.
           sed -i 's/: json)/: typing.Any)/g' /tmp/stub_check/dakota/environment/environment.pyi
+          # Same normalization as scripts/generate_stubs.sh: give the
+          # analysis-driver callback params a real Callable type instead of
+          # Any / a bare dict.
+          python3 - /tmp/stub_check/dakota/environment/environment.pyi <<'PYEOF'
+          import re, sys
+          path = sys.argv[1]
+          text = open(path).read()
+          alias = (
+              "DakotaCallback = typing.Callable[[dict[str, typing.Any]], dict[str, typing.Any]]\n"
+              '"""Per-evaluation analysis-driver callback: receives a params dict (variable\n'
+              "values/labels/ASV, either as numpy arrays or lists depending on the\n"
+              '`numpy` interface option) and must return a response dict."""\n'
+          )
+          marker = "__all__: list[str] = "
+          idx = text.index(marker)
+          line_end = text.index("\n", idx) + 1
+          text = text[:line_end] + alias + text[line_end:]
+          text = text.replace("callback: typing.Any", "callback: DakotaCallback")
+          text = re.sub(r"callbacks: dict(?!\[)", "callbacks: dict[str, DakotaCallback]", text)
+          open(path, "w").write(text)
+          PYEOF
           for f in __init__.pyi environment.pyi; do
             if ! diff -q "/tmp/stub_check/dakota/environment/$f" "stubs/dakota/environment/$f" >/dev/null 2>&1; then
               echo "::warning file=stubs/dakota/environment/$f::Committed stub is stale — run 'make stubs' and commit the result."
