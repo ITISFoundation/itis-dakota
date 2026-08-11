@@ -18,12 +18,20 @@ all:
 
 CCACHE_HOST_DIR := $(HOME)/.cache/itis-dakota-ccache
 
+# When this checkout is a git worktree (e.g. `git worktree add`), .git is a
+# file pointing at an absolute path under the main repo's .git/worktrees/...
+# That path lives outside this project directory, so it isn't visible in the
+# cibuildwheel container unless bind-mounted at the same absolute path too;
+# without it, git/setuptools_scm can't resolve the repo and version detection
+# fails with "no version found". Harmless no-op for a plain (non-worktree) clone.
+GIT_COMMON_DIR := $(shell git rev-parse --path-format=absolute --git-common-dir)
+
 wheel: cache-clean clean $(VENV)
 ifeq ($(shell uname -s),Darwin)
 	@$(MAKE) --no-print-directory wheel-macos
 else
 	mkdir -p $(CCACHE_HOST_DIR)
-	MAKEFLAGS="--no-print-directory" CIBW_BUILD="cp314-*" CIBW_ARCHS="$(shell uname -m)" CIBW_CONTAINER_ENGINE='docker; create_args: -v "$(CCACHE_HOST_DIR):/ccache"' CIBW_ENVIRONMENT='CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache CCACHE_DIR=/ccache CCACHE_UMASK=000 BOOST_LIBRARYDIR=/usr/lib64/boost1.78 BOOST_INCLUDEDIR=/usr/include/boost1.78' $(VENV_BIN)/cibuildwheel --platform linux
+	MAKEFLAGS="--no-print-directory" CIBW_BUILD="cp314-*" CIBW_ARCHS="$(shell uname -m)" CIBW_CONTAINER_ENGINE='docker; create_args: -v "$(CCACHE_HOST_DIR):/ccache" -v "$(GIT_COMMON_DIR):$(GIT_COMMON_DIR)"' CIBW_ENVIRONMENT='CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache CCACHE_DIR=/ccache CCACHE_UMASK=000 BOOST_LIBRARYDIR=/usr/lib64/boost1.78 BOOST_INCLUDEDIR=/usr/include/boost1.78' $(VENV_BIN)/cibuildwheel --platform linux
 endif
 
 # Build a macOS wheel for the current host arch using cibuildwheel.
