@@ -102,7 +102,7 @@ jobs:
           key: dakota-src-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
       - name: Get dakota src
         run: |
-          if [ ! -d dakota/.git ]; then
+          if [ ! -f dakota/CMakeLists.txt ]; then
             make get-dakota-src
           fi
       - name: Restore ccache
@@ -172,16 +172,19 @@ jobs:
           fi
           if command -v ccache &>/dev/null && [ -d .ccache ]; then
             STATS=$(CCACHE_DIR="$PWD/.ccache" ccache --show-stats 2>&1) || true
+            PARSE=$(CCACHE_DIR="$PWD/.ccache" ccache --print-stats 2>/dev/null) || true
           elif [ -d .ccache ]; then
             STATS="ccache not available on host; cache dir exists ($(du -sh .ccache | cut -f1))"
+            PARSE=""
           else
             STATS="No .ccache directory found"
+            PARSE=""
           fi
           echo "## ccache stats" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "$STATS" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          RATE=$(echo "$STATS" | awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' | tail -1)
+          RATE=$(echo "$PARSE" | awk '/^direct_cache_hit/{hits+=$2} /^preprocessed_cache_hit/{hits+=$2} /^cache_miss/{misses+=$2} END{total=hits+misses; if (total>0) printf "%.2f", (hits/total)*100}')
           echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
       - name: Run tests
         run: |
@@ -236,6 +239,65 @@ jobs:
         with:
           name: wheels-linux-${{ env.CIBW_PYTHON }}_${{ matrix.wheel-platform }}
           path: ./wheelhouse/*.whl
+
+  sbom-scan:
+    name: Scan and submit wheel SBOM
+    runs-on: ubuntu-latest
+    needs: wheels-linux
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download a wheel artifact
+        uses: actions/download-artifact@v8
+        with:
+          pattern: wheels-linux-*
+          path: dist
+          merge-multiple: true
+      - name: Extract SBOM
+        run: |
+          WHEEL=$(ls dist/*.whl | head -1)
+          echo "WHEEL=${WHEEL}" >> "$GITHUB_ENV"
+          unzip -p "${WHEEL}" "*.dist-info/sboms/auditwheel.cdx.json" > sbom.cdx.json
+          python3 scripts/sbom_for_scan.py sbom.cdx.json sbom-for-scan.cdx.json
+      - name: Install grype
+        run: curl -sSfL https://get.anchore.io/grype | sh -s -- -b /usr/local/bin
+      - name: Scan SBOM for known vulnerabilities
+        run: |
+          grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 -o table
+          grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 -o sarif --file results.sarif
+      - name: Scan SBOM for vulnerabilities with an available fix
+        run: grype sbom:sbom-for-scan.cdx.json --distro almalinux:8 --only-fixed --fail-on medium -o table
+      - name: Upload scan report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: grype-sbom-report
+          path: |
+            sbom-for-scan.cdx.json
+            results.sarif
+      - name: Submit SBOM to dependency graph
+        if: always()
+        run: python3 scripts/submit_sbom_snapshot.py "${WHEEL}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: sbom-scan
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
+          retry-on-snapshot-warnings: true
 
   wheels-macos:
     name: Build wheels on macos ${{ matrix.name }}
@@ -294,7 +356,7 @@ jobs:
           key: dakota-src-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
       - name: Get dakota src
         run: |
-          if [ ! -d dakota/.git ]; then
+          if [ ! -f dakota/CMakeLists.txt ]; then
             make get-dakota-src
           fi
       - name: Cache Homebrew packages
@@ -347,7 +409,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           ccache --show-stats >> $GITHUB_STEP_SUMMARY 2>&1
           echo '```' >> $GITHUB_STEP_SUMMARY
-          RATE=$(ccache --show-stats 2>/dev/null | awk '/hit rate/{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) print $i}' | tail -1)
+          RATE=$(ccache --print-stats 2>/dev/null | awk '/^direct_cache_hit/{hits+=$2} /^preprocessed_cache_hit/{hits+=$2} /^cache_miss/{misses+=$2} END{total=hits+misses; if (total>0) printf "%.2f", (hits/total)*100}')
           echo "::notice title=ccache stats - ${{ github.job }}::Hit rate: ${RATE:-unknown}%"
       - name: Run tests
         run: |
