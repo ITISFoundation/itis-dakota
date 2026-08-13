@@ -8,6 +8,7 @@ on:
       - "build_backend/**"
       - "src_patches_v624/**"
       - "scripts/**"
+      - "stubs/**"
       - "itis_dakota/**"
       - "tests/**"
       - "Makefile"
@@ -195,6 +196,44 @@ jobs:
           pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*.whl
           pip install numpy
           pytest
+      - name: Check stubs are up to date
+        # Gated to one matrix leg: dakota.environment is already built and
+        # installed above, and the check is arch/version-independent (the
+        # pybind11-generated API surface doesn't change across platforms).
+        # Warn-only: never fails the build, just flags drift.
+        if: matrix.python == '3.13' && matrix.arch == 'x86_64'
+        run: |
+          pip install pybind11-stubgen
+          pybind11-stubgen dakota.environment -o /tmp/stub_check
+          # Same normalization as scripts/generate_stubs.sh: pybind11-stubgen
+          # can't resolve nlohmann::json bindings to a real Python type.
+          sed -i 's/: json)/: typing.Any)/g' /tmp/stub_check/dakota/environment/environment.pyi
+          # Same normalization as scripts/generate_stubs.sh: give the
+          # analysis-driver callback params a real Callable type instead of
+          # Any / a bare dict.
+          python3 - /tmp/stub_check/dakota/environment/environment.pyi <<'PYEOF'
+          import re, sys
+          path = sys.argv[1]
+          text = open(path).read()
+          alias = (
+              "DakotaCallback = typing.Callable[[dict[str, typing.Any]], dict[str, typing.Any]]\n"
+              '"""Per-evaluation analysis-driver callback: receives a params dict (variable\n'
+              "values/labels/ASV, either as numpy arrays or lists depending on the\n"
+              '`numpy` interface option) and must return a response dict."""\n'
+          )
+          marker = "__all__: list[str] = "
+          idx = text.index(marker)
+          line_end = text.index("\n", idx) + 1
+          text = text[:line_end] + alias + text[line_end:]
+          text = text.replace("callback: typing.Any", "callback: DakotaCallback")
+          text = re.sub(r"callbacks: dict(?!\[)", "callbacks: dict[str, DakotaCallback]", text)
+          open(path, "w").write(text)
+          PYEOF
+          for f in __init__.pyi environment.pyi; do
+            if ! diff -q "/tmp/stub_check/dakota/environment/$f" "stubs/dakota/environment/$f" >/dev/null 2>&1; then
+              echo "::warning file=stubs/dakota/environment/$f::Committed stub is stale — run 'make stubs' and commit the result."
+            fi
+          done
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:

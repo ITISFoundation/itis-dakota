@@ -79,6 +79,9 @@ test: wheelhouse/.built
 	fi
 	. $(TEST_VENV_BIN)/activate && pytest
 
+stubs: wheelhouse/.built
+	./scripts/generate_stubs.sh
+
 install: cache-clean
 	pip install -v .
 

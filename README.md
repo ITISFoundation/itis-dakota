@@ -41,4 +41,47 @@ Building the wheel
 make wheel
 ```
 
+Typing / stubs
+--------------
+
+`dakota.environment` is a compiled pybind11 extension, so its type stubs
+(`stubs/dakota/environment/{__init__.pyi,environment.pyi}`) are generated,
+not hand-written. After bumping the Dakota version or touching
+`dakota/src/dakota_python.cpp` via a patch, rebuild the wheel and
+regenerate the stubs, then commit the result:
+
+```
+make wheel
+make stubs
+```
+
+CI flags (via a warn-only annotation, does not fail the build) if the
+committed stubs no longer match the compiled module.
+
+Dakota's native JSON input format
+----------------------------------
+
+Since Dakota 6.24, studies can be configured directly from JSON instead of
+Dakota's legacy keyword input file. Dakota's own Pydantic v2 models for that
+JSON format (`dakota/python/dakota/spec`, source of truth for `dakota.json`
+and the C++ JSON parser) are shipped as `dakota.spec`, giving IDE
+autocomplete/inline docs and real validation without a round-trip to the
+online docs:
+
+```python
+from dakota.spec import DakotaStudy
+import dakota.environment as dakenv
+
+study = DakotaStudy(
+    method=[...],
+    variables=[...],
+    responses=[...],
+)
+dakenv.study(callback, study.model_dump(mode="json", exclude_none=True))
+```
+
+`dakota.spec` is pure Python (no compiled dependency) and is copied
+verbatim from the vendored Dakota source on each build, so it stays in
+sync with whatever Dakota version this wheel bundles automatically.
+
 Copyright (c) 2023-2026 IT'IS Foundation, Zurich, Switzerland

@@ -6,7 +6,7 @@ authors = [
     {name="Werner Van Geit"}
 ]
 readme = {file = "README.md", content-type = "text/markdown"}
-dependencies = ["numpy"]
+dependencies = ["numpy", "pydantic"]
 requires-python = ">=3.8"
 dynamic = ["version"]
 
@@ -35,6 +35,9 @@ package-dir = {"itis_dakota" = "itis_dakota"}
 
 [tool.setuptools.package-data]
 itis_dakota = ["py.typed"]
+
+[dependency-groups]
+dev = ["pybind11-stubgen"]
 
 [tool.setuptools_scm]
 version_file = "itis_dakota/_version.py"
