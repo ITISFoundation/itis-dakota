@@ -1,8 +1,6 @@
 import os
 import subprocess
 
-import pytest
-
 # Regression test for a Dakota crash (SIGSEGV / Windows 0xC0000005) that occurs
 # when the "dakota" Gaussian process backend is combined with results_output.
 #
