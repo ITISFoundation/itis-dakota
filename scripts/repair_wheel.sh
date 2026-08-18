@@ -91,6 +91,16 @@ if [ -n "${CORRUPTED_BINARY}" ]; then
     chmod 755 "${CORRUPTED_BINARY}"
 fi
 
+# auditwheel duplicates every TPL .so it finds under .data/scripts/ into itis_dakota.scripts/, on top of the real bundled copy in itis_dakota.libs/,
+# even though nothing's RPATH ever points at itis_dakota.scripts (only dakota's console-script wrapper needs the "dakota" binary there). Drop the
+# dead-weight duplicates and prune their RECORD entries so pip's installed-file hash bookkeeping stays consistent with actual wheel contents.
+find "${WHEEL_NAME}/itis_dakota.scripts" -type f -name "*.so*" -print -delete
+DIST_INFO_DIR=$(find "${WHEEL_NAME}" -maxdepth 1 -name "*.dist-info" | head -1)
+if [ -n "${DIST_INFO_DIR}" ] && [ -f "${DIST_INFO_DIR}/RECORD" ]; then
+    grep -v "^itis_dakota\.scripts/.*\.so" "${DIST_INFO_DIR}/RECORD" > "${DIST_INFO_DIR}/RECORD.tmp"
+    mv "${DIST_INFO_DIR}/RECORD.tmp" "${DIST_INFO_DIR}/RECORD"
+fi
+
 # Step 6: Fix RPATH on .so files, computing the "../.." depth per file since it varies (e.g. .data/scripts/*.so vs .data/platlib/dakota/environment/*.so).
 # auditwheel replaces every relinked ELF under .data/scripts/ (not just dakota) with a tiny Python wrapper stub; skip those, they're never dlopen'd at runtime.
 # pip strips the "<name>-VERSION.data/platlib/" prefix and merges its contents directly into site-packages, so depth must be computed relative to
