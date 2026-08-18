@@ -12,11 +12,17 @@ add_compile_options(-w)
 add_compile_definitions(BOOST_BIND_GLOBAL_PLACEHOLDERS)
 
 # Put each function/variable in its own section so the linker can drop
-# unreferenced ones (--gc-sections below) instead of keeping every unused
+# unreferenced ones (dead-strip flag below) instead of keeping every unused
 # template instantiation from the statically-linked Dakota/TPL code.
 add_compile_options(-ffunction-sections -fdata-sections)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
+if(APPLE)
+    # Apple's ld doesn't understand GNU --gc-sections; -dead_strip is the equivalent.
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
+else()
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
+endif()
 
 set(DAKOTA_SCHEMA_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dakota/src/dakota.json CACHE STRING "Dakota Schema file")
 set(DAKOTA_XML_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/dakota/src/dakota.xml CACHE STRING "Dakota XML grammar file")
