@@ -94,10 +94,14 @@ fi
 # auditwheel duplicates every TPL .so it finds under .data/scripts/ into itis_dakota.scripts/, on top of the real bundled copy in itis_dakota.libs/,
 # even though nothing's RPATH ever points at itis_dakota.scripts (only dakota's console-script wrapper needs the "dakota" binary there). Drop the
 # dead-weight duplicates and prune their RECORD entries so pip's installed-file hash bookkeeping stays consistent with actual wheel contents.
+# The .data/scripts/*.so files themselves (real ELF copies auditwheel left untouched, plus tiny wrapper stubs it replaced others with) only ever
+# existed so the LIBSCRATCH extraction above could feed auditwheel's LD_LIBRARY_PATH-based dependency scan - they serve no purpose in the final
+# wheel (pip installs .data/scripts/* into a completely different location, venv bin/, that nothing's RPATH targets either), so drop those too.
 find "${WHEEL_NAME}/itis_dakota.scripts" -type f -name "*.so*" -print -delete
+find "${WHEEL_NAME}" -path "*.data/scripts/*.so*" -type f -print -delete
 DIST_INFO_DIR=$(find "${WHEEL_NAME}" -maxdepth 1 -name "*.dist-info" | head -1)
 if [ -n "${DIST_INFO_DIR}" ] && [ -f "${DIST_INFO_DIR}/RECORD" ]; then
-    grep -v "^itis_dakota\.scripts/.*\.so" "${DIST_INFO_DIR}/RECORD" > "${DIST_INFO_DIR}/RECORD.tmp"
+    grep -v -E "^itis_dakota\.scripts/.*\.so|\.data/scripts/.*\.so" "${DIST_INFO_DIR}/RECORD" > "${DIST_INFO_DIR}/RECORD.tmp"
     mv "${DIST_INFO_DIR}/RECORD.tmp" "${DIST_INFO_DIR}/RECORD"
 fi
 
