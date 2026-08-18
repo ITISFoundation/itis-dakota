@@ -11,6 +11,13 @@ add_compile_options(-w)
 # add_compile_options(-Wno-psabi)
 add_compile_definitions(BOOST_BIND_GLOBAL_PLACEHOLDERS)
 
+# Put each function/variable in its own section so the linker can drop
+# unreferenced ones (--gc-sections below) instead of keeping every unused
+# template instantiation from the statically-linked Dakota/TPL code.
+add_compile_options(-ffunction-sections -fdata-sections)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
+
 set(DAKOTA_SCHEMA_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dakota/src/dakota.json CACHE STRING "Dakota Schema file")
 set(DAKOTA_XML_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/dakota/src/dakota.xml CACHE STRING "Dakota XML grammar file")
 
