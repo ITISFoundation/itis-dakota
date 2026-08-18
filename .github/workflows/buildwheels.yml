@@ -267,20 +267,36 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "x86_64"
+          - name: "x86_64 (1/2)"
             arch: x86_64
             github-runner: "macos-15-intel"
             wheel-platform: "x86_64"
-            cibw-build: "cp312-* cp313-* cp314-*"
-            group: "all"
+            cibw-build: "cp312-*"
+            group: "1"
+            test-python: "3.12"
+            test-cp: "cp312"
+          - name: "x86_64 (2/2)"
+            arch: x86_64
+            github-runner: "macos-15-intel"
+            wheel-platform: "x86_64"
+            cibw-build: "cp313-* cp314-*"
+            group: "2"
             test-python: "3.14"
             test-cp: "cp314"
-          - name: "arm64"
+          - name: "arm64 (1/2)"
             arch: arm64
             github-runner: "macos-14"
             wheel-platform: "arm64"
-            cibw-build: "cp312-* cp313-* cp314-*"
-            group: "all"
+            cibw-build: "cp312-*"
+            group: "1"
+            test-python: "3.12"
+            test-cp: "cp312"
+          - name: "arm64 (2/2)"
+            arch: arm64
+            github-runner: "macos-14"
+            wheel-platform: "arm64"
+            cibw-build: "cp313-* cp314-*"
+            group: "2"
             test-python: "3.14"
             test-cp: "cp314"
 
@@ -398,11 +414,11 @@ jobs:
           - os: macos
             arch: x86_64
             github-runner: "macos-15-intel"
-            artifact: "wheels-macos-x86_64-all"
+            artifact: "wheels-macos-x86_64-2"
           - os: macos
             arch: arm64
             github-runner: "macos-14"
-            artifact: "wheels-macos-arm64-all"
+            artifact: "wheels-macos-arm64-2"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
