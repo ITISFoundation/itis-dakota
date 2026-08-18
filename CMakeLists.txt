@@ -55,6 +55,21 @@ install(TARGETS dakota_src
         COMPONENT dakota_for_python
         LIBRARY DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
+# BUILD_SHARED_LIBS=ON produces ~40 untracked TPL .so targets; glob and install whatever actually got built (some declared targets like Trilinos ROL never build) so auditwheel can find them.
+install(CODE "
+  file(GLOB_RECURSE _dakota_tpl_shared_libs
+       \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.so\"
+       \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.so.*\")
+  list(FILTER _dakota_tpl_shared_libs EXCLUDE REGEX \"/libdakota_src\\\\.so|/environment\\\\.\")
+  foreach(_lib IN LISTS _dakota_tpl_shared_libs)
+    file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_BIN_DIRECTORY}\"
+         TYPE SHARED_LIBRARY
+         FOLLOW_SYMLINK_CHAIN
+         FILES \"\${_lib}\")
+  endforeach()
+"
+COMPONENT dakota_for_python)
+
 #install(PROGRAMS ${Dakota_TPL_LIBRARIES} 
 #   COMPONENT dakota_for_python
 #    DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/)
