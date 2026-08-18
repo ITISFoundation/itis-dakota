@@ -61,12 +61,13 @@ install(TARGETS dakota_src
         COMPONENT dakota_for_python
         LIBRARY DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
-# BUILD_SHARED_LIBS=ON produces ~40 untracked TPL .so targets; glob and install whatever actually got built (some declared targets like Trilinos ROL never build) so auditwheel can find them.
+# BUILD_SHARED_LIBS=ON produces ~40 untracked TPL .so/.dylib targets; glob and install whatever actually got built (some declared targets like Trilinos ROL never build) so auditwheel/delocate can find them.
 install(CODE "
   file(GLOB_RECURSE _dakota_tpl_shared_libs
        \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.so\"
-       \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.so.*\")
-  list(FILTER _dakota_tpl_shared_libs EXCLUDE REGEX \"/libdakota_src\\\\.so|/environment\\\\.\")
+       \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.so.*\"
+       \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.dylib\")
+  list(FILTER _dakota_tpl_shared_libs EXCLUDE REGEX \"/libdakota_src\\\\.(so|dylib)|/environment\\\\.\")
   foreach(_lib IN LISTS _dakota_tpl_shared_libs)
     file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_BIN_DIRECTORY}\"
          TYPE SHARED_LIBRARY
@@ -88,3 +89,30 @@ install(TARGETS environment
 install(FILES dakota/src/__init__.py
     COMPONENT dakota_for_python
     DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/)
+
+if(APPLE)
+    # Unlike Linux, the "dakota" exe and "environment" module never had any TPL
+    # they link @rpath-style before (only pre-built Homebrew TPLs with absolute
+    # install names) so they have NO LC_RPATH at all - @rpath/libfoo.dylib refs
+    # to our own new TPL .dylib's can't resolve, and delocate can't discover
+    # them to bundle. Add @loader_path so delocate can find sibling .dylibs in
+    # the same directory (dakota/dakota_src/TPL libs all land in
+    # PY_BUILD_CMAKE_BIN_DIRECTORY); environment.so lives 3 levels below that
+    # (.data/platlib/dakota/environment/ vs .data/scripts/), so it also needs a
+    # relative hop back to that directory.
+    install(CODE "
+      file(GLOB _dakota_bin_dir_dylibs
+           \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_BIN_DIRECTORY}/*.dylib\")
+      foreach(_f IN LISTS _dakota_bin_dir_dylibs)
+        execute_process(COMMAND install_name_tool -add_rpath \"@loader_path\" \"\${_f}\")
+      endforeach()
+      execute_process(COMMAND install_name_tool -add_rpath \"@loader_path\"
+        \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_BIN_DIRECTORY}/dakota\")
+      file(GLOB _dakota_environment_module
+           \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/environment*.so\")
+      foreach(_f IN LISTS _dakota_environment_module)
+        execute_process(COMMAND install_name_tool -add_rpath \"@loader_path/../../../scripts\" \"\${_f}\")
+      endforeach()
+    "
+    COMPONENT dakota_for_python)
+endif()
