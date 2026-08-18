@@ -105,6 +105,22 @@ if [ -n "${DIST_INFO_DIR}" ] && [ -f "${DIST_INFO_DIR}/RECORD" ]; then
     mv "${DIST_INFO_DIR}/RECORD.tmp" "${DIST_INFO_DIR}/RECORD"
 fi
 
+# libboost_regex links against libicudata/libicui18n/libicuuc (~51MB raw) but references zero symbols from them (verified via `nm -D`: all 83
+# undefined symbols are libc/libstdc++/CXXABI only) - the distro's Boost build just didn't pass --as-needed to the linker. Since nothing else in
+# the wheel needs ICU either, drop the unused NEEDED entries and the ICU libs themselves, then prune their RECORD entries.
+BOOST_REGEX_FILE=$(find "${WHEEL_NAME}/itis_dakota.libs" -maxdepth 1 -name "libboost_regex*.so*" -type f | head -1)
+if [ -n "${BOOST_REGEX_FILE}" ]; then
+    for icu_needed in $(patchelf --print-needed "${BOOST_REGEX_FILE}" | grep -i '^libicu'); do
+        echo "Removing unused NEEDED: ${icu_needed}"
+        patchelf --remove-needed "${icu_needed}" "${BOOST_REGEX_FILE}"
+    done
+    find "${WHEEL_NAME}/itis_dakota.libs" -maxdepth 1 -name "libicu*.so*" -type f -print -delete
+    if [ -n "${DIST_INFO_DIR}" ] && [ -f "${DIST_INFO_DIR}/RECORD" ]; then
+        grep -v -E "itis_dakota\.libs/libicu(data|i18n|uc)-.*\.so" "${DIST_INFO_DIR}/RECORD" > "${DIST_INFO_DIR}/RECORD.tmp"
+        mv "${DIST_INFO_DIR}/RECORD.tmp" "${DIST_INFO_DIR}/RECORD"
+    fi
+fi
+
 # Step 6: Fix RPATH on .so files, computing the "../.." depth per file since it varies (e.g. .data/scripts/*.so vs .data/platlib/dakota/environment/*.so).
 # auditwheel replaces every relinked ELF under .data/scripts/ (not just dakota) with a tiny Python wrapper stub; skip those, they're never dlopen'd at runtime.
 # pip strips the "<name>-VERSION.data/platlib/" prefix and merges its contents directly into site-packages, so depth must be computed relative to
