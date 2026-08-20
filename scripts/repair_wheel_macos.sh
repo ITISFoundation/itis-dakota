@@ -345,6 +345,78 @@ if rename_map:
     print(f"Deduped {len(rename_map)} SONAME-variant copies: {rename_map}")
 PYEOF
 
+# Step 3c: neutralize ICU dylibs (~35% of wheel size) bundled only because Homebrew's boost formula unconditionally links libboost_regex against ICU, even though Dakota never calls the Unicode-aware regex APIs that need it.
+python3 - "${WORKDIR}" "${BUNDLE_DIR}" "${DELOCATE_ARCHS}" <<'PYEOF'
+import os
+import re
+import subprocess
+import sys
+
+workdir, bundle_dir, delocate_archs = sys.argv[1], sys.argv[2], sys.argv[3]
+
+icu_libs = [f for f in os.listdir(bundle_dir) if re.match(r"^libicu[a-z0-9]+\.\d+(\.\d+)*\.dylib$", f)]
+if not icu_libs:
+    sys.exit(0)
+
+def is_macho(path):
+    with open(path, "rb") as f:
+        magic = f.read(4)
+    return magic in (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca")
+
+macho_files = []
+for root, _dirs, files in os.walk(workdir):
+    for name in files:
+        path = os.path.join(root, name)
+        if not os.path.islink(path) and is_macho(path) and os.path.basename(path) not in icu_libs:
+            macho_files.append(path)
+
+# Safety check: two-level namespace symbol table entries are annotated "(from
+# <library>)" per imported symbol; only neutralize a library if no symbol
+# outside the ICU family itself is actually bound to it (ICU's own libraries
+# reference each other internally, which is irrelevant since we replace the
+# whole family together).
+unsafe = set()
+for path in macho_files:
+    out = subprocess.run(["nm", "-m", path], capture_output=True, text=True).stdout
+    for name in icu_libs:
+        stem = name.split(".")[0]
+        if f"from {stem}" in out:
+            unsafe.add(name)
+
+for name in unsafe:
+    print(f"Step 3c: skipping {name}, at least one symbol is actually imported from it")
+
+archs = [a for a in delocate_archs.split(",") if a]
+neutralized = {}
+for name in icu_libs:
+    if name in unsafe:
+        continue
+    path = os.path.join(bundle_dir, name)
+    before = os.path.getsize(path)
+
+    load_cmds = subprocess.run(["otool", "-l", path], capture_output=True, text=True).stdout
+    m = re.search(r"cmd LC_ID_DYLIB\n.*\n\s*name (\S+).*\n\s*time stamp.*\n\s*current version ([\d.]+)\n\s*compatibility version ([\d.]+)", load_cmds)
+    if not m:
+        print(f"Step 3c: skipping {name}, could not parse its LC_ID_DYLIB")
+        continue
+    install_name, current_version, compat_version = m.group(1), m.group(2), m.group(3)
+
+    stub_path = path + ".stub"
+    cmd = ["clang", "-dynamiclib", "-x", "c", "/dev/null", "-o", stub_path,
+           "-install_name", install_name,
+           "-current_version", current_version,
+           "-compatibility_version", compat_version]
+    for arch in archs:
+        cmd += ["-arch", arch]
+    subprocess.run(cmd, check=True)
+    os.replace(stub_path, path)
+    neutralized[name] = before - os.path.getsize(path)
+
+if neutralized:
+    total = sum(neutralized.values())
+    print(f"Step 3c: neutralized {len(neutralized)} ICU dylib(s), saved {total} bytes: {neutralized}")
+PYEOF
+
 # Step 4: re-codesign every Mach-O file we modified. macOS requires an
 # ad-hoc signature (or stricter) for arm64 binaries to be loadable.
 while IFS= read -r f; do
