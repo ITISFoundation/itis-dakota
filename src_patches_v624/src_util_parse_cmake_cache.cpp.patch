@@ -1,0 +1,17 @@
+diff --git a/src/util/parse_cmake_cache.cpp b/src/util/parse_cmake_cache.cpp
+index 234b371..3796b37 100644
+--- a/src/util/parse_cmake_cache.cpp
++++ b/src/util/parse_cmake_cache.cpp
+@@ -76,6 +76,12 @@ int main(int argc, char const *argv[]) {
+           continue;
+         }
+ 
++        // Skip per-build random paths; they defeat ccache reuse & are noise.
++        if (line.find("/var/folders/") != std::string::npos ||
++            line.find("/tmp/") != std::string::npos) {
++          continue;
++        }
++
+         // Remove any non-system level directories
+         {
+           fs::path dakota_path = dakota_base_dir;
