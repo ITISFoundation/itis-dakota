@@ -100,18 +100,29 @@ if(APPLE)
     # PY_BUILD_CMAKE_BIN_DIRECTORY); environment.so lives 3 levels below that
     # (.data/platlib/dakota/environment/ vs .data/scripts/), so it also needs a
     # relative hop back to that directory.
+    #
+    # Fortran-linked targets (and Teuchos, linked via the Fortran driver for
+    # BLAS/LAPACK ABI compatibility) already get @loader_path as an LC_RPATH
+    # from gfortran's own default link flags, so check first to avoid
+    # install_name_tool's "would duplicate path" error on those.
     install(CODE "
+      function(add_rpath_if_missing _f _rpath)
+        execute_process(COMMAND otool -l \"\${_f}\" OUTPUT_VARIABLE _existing_rpaths)
+        string(FIND \"\${_existing_rpaths}\" \"path \${_rpath} (offset\" _rpath_idx)
+        if(_rpath_idx EQUAL -1)
+          execute_process(COMMAND install_name_tool -add_rpath \"\${_rpath}\" \"\${_f}\")
+        endif()
+      endfunction()
       file(GLOB _dakota_bin_dir_dylibs
            \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_BIN_DIRECTORY}/*.dylib\")
       foreach(_f IN LISTS _dakota_bin_dir_dylibs)
-        execute_process(COMMAND install_name_tool -add_rpath \"@loader_path\" \"\${_f}\")
+        add_rpath_if_missing(\"\${_f}\" \"@loader_path\")
       endforeach()
-      execute_process(COMMAND install_name_tool -add_rpath \"@loader_path\"
-        \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_BIN_DIRECTORY}/dakota\")
+      add_rpath_if_missing(\"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_BIN_DIRECTORY}/dakota\" \"@loader_path\")
       file(GLOB _dakota_environment_module
            \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/environment*.so\")
       foreach(_f IN LISTS _dakota_environment_module)
-        execute_process(COMMAND install_name_tool -add_rpath \"@loader_path/../../../scripts\" \"\${_f}\")
+        add_rpath_if_missing(\"\${_f}\" \"@loader_path/../../../scripts\")
       endforeach()
     "
     COMPONENT dakota_for_python)
