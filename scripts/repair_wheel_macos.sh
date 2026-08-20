@@ -200,7 +200,7 @@ PYEOF
     chmod 755 "${SCRIPT_DAKOTA}"
 fi
 
-# Step 2c: relocate every TPL .dylib CMake dropped in .data/scripts/ into delocate's bundle dir; those are internal (not Homebrew) so delocate leaves their broken scripts-relative refs alone, and pip installs .data/scripts/* to a different place than .data/platlib/*.
+# Step 2c: move TPL .dylibs from .data/scripts/ into delocate bundle dir.
 BUNDLE_DIR=$(find "${WORKDIR}" -maxdepth 3 -type d -name ".dylibs" | head -1)
 if [ -z "${BUNDLE_DIR}" ]; then
     BUNDLE_DIR="${WORKDIR}/.dylibs"
@@ -219,7 +219,7 @@ if [ -n "${SCRIPTS_DIR}" ]; then
     done < <(find "${SCRIPTS_DIR}" -maxdepth 1 -type f -name "*.dylib")
 fi
 
-# Step 3: rewrite install names for the .data/platlib indirection (see header comment) and the Step 2c relocations; 2-levels-deep consumers use @loader_path/../../<BUNDLE_REL>/<lib>, files inside BUNDLE_DIR itself use a bare @loader_path/<lib>.
+# Step 3: rewrite install names for .data/platlib + Step 2c moves.
 fix_install_names() {
     local f="$1"
     local f_dir
@@ -252,7 +252,7 @@ fix_install_names() {
     done < <(otool -L "${f}" 2>/dev/null | awk 'NR>1 {print $1}')
 }
 
-# Apply fix to all Mach-O files under .data/platlib and inside BUNDLE_DIR itself (whose members may reference each other using the pre-relocation depth).
+# Apply to .data/platlib and BUNDLE_DIR (members may cross-reference).
 PLATLIB_ROOT=$(find "${WORKDIR}" -type d -path "*.data/platlib" | head -1)
 for ROOT in "${PLATLIB_ROOT}" "${BUNDLE_DIR}"; do
     if [ -n "${ROOT}" ]; then
@@ -280,7 +280,7 @@ if [ -n "${RELOCATED_DAKOTA}" ]; then
     done < <(otool -L "${RELOCATED_DAKOTA}" 2>/dev/null | awk 'NR>1 {print $1}')
 fi
 
-# Step 3b: dedupe SONAME-variant copies (e.g. libfoo.dylib/.16.dylib/.16.1.0.dylib as 3 full copies instead of symlinks, since `wheel pack` dereferences symlinks); rewrite references to one canonical filename and delete the rest.
+# Step 3b: dedupe SONAME-variant copies (wheel pack turns symlinks real).
 python3 - "${WORKDIR}" "${BUNDLE_DIR}" <<'PYEOF'
 import os
 import subprocess
@@ -315,7 +315,7 @@ for stem, members in groups.items():
     if len(members) < 2:
         continue
     sizes = [os.path.getsize(os.path.join(bundle_dir, name)) for _, name in members]
-    # A few bytes of size difference is just the longer embedded install-name string, not different compiled code.
+    # Size diff is just the longer embedded install-name string, not code.
     if max(sizes) - min(sizes) > 4096:
         continue
     members.sort(key=lambda item: (item[0], item[1]))
@@ -345,7 +345,7 @@ if rename_map:
     print(f"Deduped {len(rename_map)} SONAME-variant copies: {rename_map}")
 PYEOF
 
-# Step 3c: neutralize ICU dylibs (~35% of wheel size) bundled only because Homebrew's boost formula unconditionally links libboost_regex against ICU, even though Dakota never calls the Unicode-aware regex APIs that need it.
+# Step 3c: neutralize ICU dylibs (~35% of wheel), unused by boost_regex.
 python3 - "${WORKDIR}" "${BUNDLE_DIR}" "${DELOCATE_ARCHS}" <<'PYEOF'
 import os
 import re
@@ -370,11 +370,7 @@ for root, _dirs, files in os.walk(workdir):
         if not os.path.islink(path) and is_macho(path) and os.path.basename(path) not in icu_libs:
             macho_files.append(path)
 
-# Safety check: two-level namespace symbol table entries are annotated "(from
-# <library>)" per imported symbol; only neutralize a library if no symbol
-# outside the ICU family itself is actually bound to it (ICU's own libraries
-# reference each other internally, which is irrelevant since we replace the
-# whole family together).
+# Safety: skip any ICU lib something outside the family imports from.
 unsafe = set()
 for path in macho_files:
     out = subprocess.run(["nm", "-m", path], capture_output=True, text=True).stdout

@@ -79,7 +79,7 @@ CCACHE_COMPRESS = "true"
 CCACHE_BASEDIR = "/project"
 CCACHE_SLOPPINESS = "include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,clang_index_store,system_headers,locale"
 CCACHE_NOHASHDIR = "true"
-# The build-isolation env is a randomly-named temp dir, so its numpy/Python -I flags differ every run and would otherwise miss on every file; direct mode still hashes the headers' contents via the manifest.
+# Build-isolation temp dirs are random, so ignore -I flags into them.
 CCACHE_IGNOREOPTIONS = "-I/tmp*"
 CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
@@ -90,13 +90,7 @@ CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 [tool.cibuildwheel.macos]
 repair-wheel-command = "./scripts/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}"
 before-build = "ccache --show-stats 2>/dev/null | grep -E 'Hits|Misses|hit rate' || true"
-# NOTE: unlike Linux, cibuildwheel on macOS runs directly on the host (no
-# container). Anything in `before-all` would mutate the host, so we keep
-# this minimal and expect build dependencies (boost, hdf5, gsl, lapack,
-# gcc/gfortran, ccache, cmake, ninja) to already be installed. CI installs
-# them as an explicit step; locally install them once with `make brew-deps`.
-# Use a dedicated venv rather than the host interpreter: unversioned `python`/`pip` only exist in CI, and Homebrew's python3 refuses installs under PEP 668.
-# uv is installed via `make brew-deps` instead: before-all runs as a subprocess, so anything it puts on PATH never reaches cibuildwheel's own process.
+# No container on macOS; deps (incl. uv) come from brew-deps, not here.
 before-all = [
     "python3 -m venv /tmp/itis-dakota-buildtools",
     "/tmp/itis-dakota-buildtools/bin/python -m pip install --quiet setuptools_scm",
@@ -128,7 +122,7 @@ PATH = "$(brew --prefix)/bin:$PATH"
 CCACHE_BASEDIR = "/Users"
 CCACHE_SLOPPINESS = "include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,clang_index_store,system_headers,locale"
 CCACHE_NOHASHDIR = "true"
-# The build-isolation env is a randomly-named temp dir, so its numpy/Python -I flags differ every run and would otherwise miss on every file; direct mode still hashes the headers' contents via the manifest.
+# Build-isolation temp dirs are random, so ignore -I flags into them.
 CCACHE_IGNOREOPTIONS = "-I/private/var/folders* -I/var/folders* -I/tmp*"
 CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"

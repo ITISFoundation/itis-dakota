@@ -11,12 +11,10 @@ add_compile_options(-w)
 # add_compile_options(-Wno-psabi)
 add_compile_definitions(BOOST_BIND_GLOBAL_PLACEHOLDERS)
 
-# Put each function/variable in its own section so the linker can drop
-# unreferenced ones (dead-strip flag below) instead of keeping every unused
-# template instantiation from the statically-linked Dakota/TPL code.
+# Enables -dead_strip/--gc-sections below to drop unused template code.
 add_compile_options(-ffunction-sections -fdata-sections)
 if(APPLE)
-    # Apple's ld doesn't understand GNU --gc-sections; -dead_strip is the equivalent.
+    # Apple's ld equivalent of GNU --gc-sections.
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
 else()
@@ -61,7 +59,7 @@ install(TARGETS dakota_src
         COMPONENT dakota_for_python
         LIBRARY DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
-# BUILD_SHARED_LIBS=ON produces ~40 untracked TPL .so/.dylib targets; glob and install whatever actually got built (some declared targets like Trilinos ROL never build) so auditwheel/delocate can find them.
+# Glob+install whatever TPL .so/.dylib got built, for auditwheel/delocate.
 install(CODE "
   file(GLOB_RECURSE _dakota_tpl_shared_libs
        \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.so\"
@@ -91,20 +89,7 @@ install(FILES dakota/src/__init__.py
     DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/)
 
 if(APPLE)
-    # Unlike Linux, the "dakota" exe and "environment" module never had any TPL
-    # they link @rpath-style before (only pre-built Homebrew TPLs with absolute
-    # install names) so they have NO LC_RPATH at all - @rpath/libfoo.dylib refs
-    # to our own new TPL .dylib's can't resolve, and delocate can't discover
-    # them to bundle. Add @loader_path so delocate can find sibling .dylibs in
-    # the same directory (dakota/dakota_src/TPL libs all land in
-    # PY_BUILD_CMAKE_BIN_DIRECTORY); environment.so lives 3 levels below that
-    # (.data/platlib/dakota/environment/ vs .data/scripts/), so it also needs a
-    # relative hop back to that directory.
-    #
-    # Fortran-linked targets (and Teuchos, linked via the Fortran driver for
-    # BLAS/LAPACK ABI compatibility) already get @loader_path as an LC_RPATH
-    # from gfortran's own default link flags, so check first to avoid
-    # install_name_tool's "would duplicate path" error on those.
+    # Add @loader_path (delocate needs it); skip if gfortran already added it.
     install(CODE "
       function(add_rpath_if_missing _f _rpath)
         execute_process(COMMAND otool -l \"\${_f}\" OUTPUT_VARIABLE _existing_rpaths)

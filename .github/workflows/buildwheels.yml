@@ -108,7 +108,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .ccache
-          # Keyed by compile-affecting inputs, not github.sha, so any one completed run (many get cancelled by cancel-in-progress before the slower macOS job finishes) warms the cache for every commit sharing those inputs.
+          # Keyed by compile inputs, not sha, so one run warms many commits.
           key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
           restore-keys: ccache-linux-${{ matrix.arch }}-
       - name: Ensure ccache dir exists
@@ -122,7 +122,7 @@ jobs:
             }}/.ccache,target=/project/.ccache --mount type=bind,source=${{
             github.workspace
             }}/.cibw_wheels_safe,target=/project/.cibw_wheels_safe
-      # Save right after the compile-heavy step, not at job end, so a completed build is persisted even if a later step (tests, upload) fails or the job is cancelled.
+      # Save right after compile, before tests/cancellation can lose it.
       - name: Save ccache
         if: always()
         uses: actions/cache/save@v5
@@ -355,7 +355,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/Library/Caches/ccache
-          # Keyed by compile-affecting inputs, not github.sha, so any one completed run (many get cancelled by cancel-in-progress before the slower macOS job finishes) warms the cache for every commit sharing those inputs.
+          # Keyed by compile inputs, not sha, so one run warms many commits.
           key: ccache-macos-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
           restore-keys: ccache-macos-${{ matrix.arch }}-
       - name: Zero ccache stats
@@ -364,7 +364,7 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.cibw-build }}
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
-      # Save right after the compile-heavy step, not at job end, so a completed build is persisted even if a later step (tests, upload) fails or the job is cancelled.
+      # Save right after compile, before tests/cancellation can lose it.
       - name: Save ccache
         if: always()
         uses: actions/cache/save@v5

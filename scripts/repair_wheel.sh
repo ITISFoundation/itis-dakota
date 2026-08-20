@@ -18,7 +18,7 @@ PROJECT_ROOT="$(pwd)"
 DEST_DIR=$1
 ORIG_WHEEL=$2
 
-# auditwheel resolves NEEDED libs via the dynamic linker, not sibling files in the unrepaired wheel, so point LD_LIBRARY_PATH at the extracted TPL .so files first.
+# Point LD_LIBRARY_PATH at extracted TPL .so files for auditwheel scan.
 LIBSCRATCH=$(mktemp -d)
 unzip -o "${ORIG_WHEEL}" "*.data/scripts/*.so*" -d "${LIBSCRATCH}" || true
 TPL_LIB_DIR=$(find "${LIBSCRATCH}" -type d -path "*.data/scripts" | head -1)
@@ -64,12 +64,11 @@ if [ -d "${LIBS_DIR}" ]; then
     # For each NEEDED entry, find matching hashed lib and rename
     # NEEDED has SONAME like "libhdf5_hl.so.100" but hashed file is
     # "libhdf5_hl-0b60eabd.so.100.1.2" - match on base name prefix.
-    # Unversioned libs (e.g. "libdakota_src.so" -> "libdakota_src-HASH.so")
-    # must also be handled, not just versioned ones ("libfoo.so.N.M").
+    # Unversioned libs (libdakota_src.so) need handling too, not just N.M ones.
     for needed in ${ORIG_NEEDED}; do
         # Extract base name: everything before .so (and any version suffix)
         base=$(echo "${needed}" | sed -E 's/\.so(\..*)?$//')
-        # Find hashed lib matching this base (e.g. libhdf5_hl-*.so* or libdakota_src-*.so)
+        # Find hashed lib matching this base, e.g. libhdf5_hl-*.so*
         hashed_file=$(ls "${LIBS_DIR}/${base}"-*.so* 2>/dev/null | head -1)
         if [ -n "${hashed_file}" ]; then
             hashed_name=$(basename "${hashed_file}")
@@ -91,13 +90,9 @@ if [ -n "${CORRUPTED_BINARY}" ]; then
     chmod 755 "${CORRUPTED_BINARY}"
 fi
 
-# auditwheel duplicates every TPL .so it finds under .data/scripts/ into itis_dakota.scripts/, on top of the real bundled copy in itis_dakota.libs/,
-# even though nothing's RPATH ever points at itis_dakota.scripts (only dakota's console-script wrapper needs the "dakota" binary there). Drop the
-# dead-weight duplicates and prune their RECORD entries so pip's installed-file hash bookkeeping stays consistent with actual wheel contents.
-# The .data/scripts/*.so files themselves (real ELF copies auditwheel left untouched, plus tiny wrapper stubs it replaced others with) only ever
-# existed so the LIBSCRATCH extraction above could feed auditwheel's LD_LIBRARY_PATH-based dependency scan - they serve no purpose in the final
-# wheel (pip installs .data/scripts/* into a completely different location, venv bin/, that nothing's RPATH targets either), so drop those too.
+# itis_dakota.scripts/*.so are dead-weight dupes of itis_dakota.libs/.
 find "${WHEEL_NAME}/itis_dakota.scripts" -type f -name "*.so*" -print -delete
+# .data/scripts/*.so only fed the LD_LIBRARY_PATH scan; drop them too.
 find "${WHEEL_NAME}" -path "*.data/scripts/*.so*" -type f -print -delete
 DIST_INFO_DIR=$(find "${WHEEL_NAME}" -maxdepth 1 -name "*.dist-info" | head -1)
 if [ -n "${DIST_INFO_DIR}" ] && [ -f "${DIST_INFO_DIR}/RECORD" ]; then
@@ -105,9 +100,7 @@ if [ -n "${DIST_INFO_DIR}" ] && [ -f "${DIST_INFO_DIR}/RECORD" ]; then
     mv "${DIST_INFO_DIR}/RECORD.tmp" "${DIST_INFO_DIR}/RECORD"
 fi
 
-# libboost_regex links against libicudata/libicui18n/libicuuc (~51MB raw) but references zero symbols from them (verified via `nm -D`: all 83
-# undefined symbols are libc/libstdc++/CXXABI only) - the distro's Boost build just didn't pass --as-needed to the linker. Since nothing else in
-# the wheel needs ICU either, drop the unused NEEDED entries and the ICU libs themselves, then prune their RECORD entries.
+# libboost_regex links ICU (~51MB) but uses zero symbols from it.
 BOOST_REGEX_FILE=$(find "${WHEEL_NAME}/itis_dakota.libs" -maxdepth 1 -name "libboost_regex*.so*" -type f | head -1)
 if [ -n "${BOOST_REGEX_FILE}" ]; then
     for icu_needed in $(patchelf --print-needed "${BOOST_REGEX_FILE}" | grep -i '^libicu'); do
@@ -121,10 +114,7 @@ if [ -n "${BOOST_REGEX_FILE}" ]; then
     fi
 fi
 
-# Step 6: Fix RPATH on .so files, computing the "../.." depth per file since it varies (e.g. .data/scripts/*.so vs .data/platlib/dakota/environment/*.so).
-# auditwheel replaces every relinked ELF under .data/scripts/ (not just dakota) with a tiny Python wrapper stub; skip those, they're never dlopen'd at runtime.
-# pip strips the "<name>-VERSION.data/platlib/" prefix and merges its contents directly into site-packages, so depth must be computed relative to
-# that platlib root (not the wheel zip root) for files under it, or the installed RPATH ends up with too many "../" and can't find itis_dakota.libs.
+# Step 6: fix RPATH depth (rel. to platlib root); skip wrapper stubs.
 find "${WHEEL_NAME}" -type f -name "*.so" | while read -r so_file; do
     if ! head -c4 "${so_file}" | cmp -s - <(printf '\177ELF'); then
         echo "Skipping non-ELF file: ${so_file}"
@@ -141,9 +131,7 @@ find "${WHEEL_NAME}" -type f -name "*.so" | while read -r so_file; do
 done
 find "${WHEEL_NAME}/itis_dakota.libs" -type f -name "*.so.*" -exec patchelf --set-rpath '$ORIGIN/' '{}' \;
 
-# Strip debug/local symbols from every real ELF (measured -7.5% compressed wheel size with the BUILD_SHARED_LIBS=ON
-# profile's many small .so's, vs. only -4% for the old two-giant-static-binaries layout). --strip-unneeded (not
-# --strip-all) keeps the dynamic symbol table so dynamic linking/dlopen still resolves NEEDED symbols correctly.
+# Strip local/debug symbols (-7.5% wheel size); keep dynsym for dlopen.
 find "${WHEEL_NAME}" -type f \( -name "*.so*" -o -path "*itis_dakota.scripts/dakota" \) | while read -r elf_file; do
     if head -c4 "${elf_file}" | cmp -s - <(printf '\177ELF'); then
         strip --strip-unneeded "${elf_file}"
