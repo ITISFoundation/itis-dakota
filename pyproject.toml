@@ -79,6 +79,8 @@ CCACHE_COMPRESS = "true"
 CCACHE_BASEDIR = "/project"
 CCACHE_SLOPPINESS = "include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,clang_index_store,system_headers,locale"
 CCACHE_NOHASHDIR = "true"
+# Build-isolation temp dirs are random, so ignore -I flags into them.
+CCACHE_IGNOREOPTIONS = "-I/tmp*"
 CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 
@@ -88,14 +90,11 @@ CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 [tool.cibuildwheel.macos]
 repair-wheel-command = "./scripts/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}"
 before-build = "ccache --show-stats 2>/dev/null | grep -E 'Hits|Misses|hit rate' || true"
-# NOTE: unlike Linux, cibuildwheel on macOS runs directly on the host (no
-# container). Anything in `before-all` would mutate the host, so we keep
-# this minimal and expect build dependencies (boost, hdf5, gsl, lapack,
-# gcc/gfortran, ccache, cmake, ninja) to already be installed. CI installs
-# them as an explicit step; locally install them once with `make brew-deps`.
+# No container on macOS; deps (incl. uv) come from brew-deps, not here.
 before-all = [
-    "pip install setuptools_scm delocate uv",
-    "python -m setuptools_scm --force-write-version-files",
+    "python3 -m venv /tmp/itis-dakota-buildtools",
+    "/tmp/itis-dakota-buildtools/bin/python -m pip install --quiet setuptools_scm",
+    "/tmp/itis-dakota-buildtools/bin/python -m setuptools_scm --force-write-version-files",
 ]
 environment-pass = [
     "MACOSX_DEPLOYMENT_TARGET"
@@ -120,12 +119,11 @@ FC = "$(brew --prefix)/bin/gfortran"
 PATH = "$(brew --prefix)/bin:$PATH"
 # ccache compiler launchers — ccache uses local disk cache, persisted
 # across CI runs via actions/cache.
-# CCACHE_BASEDIR + CCACHE_SLOPPINESS + CCACHE_NOHASHDIR prevent cache
-# misses caused by pip's random build-isolation temp directories
-# (Python/numpy include paths change each cibuildwheel invocation).
 CCACHE_BASEDIR = "/Users"
 CCACHE_SLOPPINESS = "include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,clang_index_store,system_headers,locale"
 CCACHE_NOHASHDIR = "true"
+# Build-isolation temp dirs are random, so ignore -I flags into them.
+CCACHE_IGNOREOPTIONS = "-I/private/var/folders* -I/var/folders* -I/tmp*"
 CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 # NOTE: We deliberately do NOT pin MACOSX_DEPLOYMENT_TARGET here. Homebrew
@@ -148,7 +146,7 @@ HAVE_QUESO = "ON"
 DAKOTA_HAVE_GSL = "ON"
 DAKOTA_PYTHON_WRAPPER = "ON"
 DAKOTA_PYTHON_DIRECT_INTERFACE = "ON"
-BUILD_SHARED_LIBS = "OFF"
+BUILD_SHARED_LIBS = "ON"
 CMAKE_POSITION_INDEPENDENT_CODE = "ON"
 CXX_FLAGS = "-w"
 CMAKE_CXX_FLAGS = "-Wno-psabi"
