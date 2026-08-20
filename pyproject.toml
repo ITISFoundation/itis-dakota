@@ -97,11 +97,18 @@ before-build = "ccache --show-stats 2>/dev/null | grep -E 'Hits|Misses|hit rate'
 # them as an explicit step; locally install them once with `make brew-deps`.
 # Use a dedicated venv rather than the host interpreter: unversioned `python`/`pip`
 # only exist in CI, and Homebrew's python3 refuses installs under PEP 668.
-# delocate/uv aren't needed here; cibuildwheel installs them into its own build venv.
+# `uv` is cibuildwheel's own build frontend, so it must be resolvable on PATH
+# before any build venv exists; expose it (and delocate) via a shim dir of
+# symlinks to just those binaries, not the venv's own python/pip, since cibuildwheel
+# asserts that `python` on PATH is its own managed instance.
 before-all = [
     "python3 -m venv /tmp/itis-dakota-buildtools",
-    "/tmp/itis-dakota-buildtools/bin/python -m pip install --quiet setuptools_scm",
+    "/tmp/itis-dakota-buildtools/bin/python -m pip install --quiet setuptools_scm delocate uv",
     "/tmp/itis-dakota-buildtools/bin/python -m setuptools_scm --force-write-version-files",
+    "mkdir -p /tmp/itis-dakota-buildtools/shim",
+    "ln -sf /tmp/itis-dakota-buildtools/bin/uv /tmp/itis-dakota-buildtools/shim/uv",
+    "ln -sf /tmp/itis-dakota-buildtools/bin/delocate-wheel /tmp/itis-dakota-buildtools/shim/delocate-wheel",
+    "ln -sf /tmp/itis-dakota-buildtools/bin/delocate-listdeps /tmp/itis-dakota-buildtools/shim/delocate-listdeps",
 ]
 environment-pass = [
     "MACOSX_DEPLOYMENT_TARGET"
@@ -123,7 +130,8 @@ LAPACK_DIR = "$(brew --prefix lapack)"
 FC = "$(brew --prefix)/bin/gfortran"
 # Ensure Homebrew's bin is on PATH so CMake (and other tools) can find
 # Homebrew-installed binaries inside cibuildwheel's build-isolation env.
-PATH = "$(brew --prefix)/bin:$PATH"
+# The shim dir (uv, delocate-wheel only - no python/pip) comes first.
+PATH = "/tmp/itis-dakota-buildtools/shim:$(brew --prefix)/bin:$PATH"
 # ccache compiler launchers — ccache uses local disk cache, persisted
 # across CI runs via actions/cache.
 CCACHE_BASEDIR = "/Users"
