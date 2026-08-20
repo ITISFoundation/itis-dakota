@@ -200,52 +200,69 @@ PYEOF
     chmod 755 "${SCRIPT_DAKOTA}"
 fi
 
-# Step 2c: relocate libdakota_src.dylib into .dylibs/ (delocate leaves it in .data/scripts/ since it's not an external dep, but that breaks after install; Step 3 rewrites references to it).
-SCRIPT_DAKOTA_SRC=$(find "${WORKDIR}" -type f -path "*.data/scripts/libdakota_src.dylib" | head -1)
-if [ -n "${SCRIPT_DAKOTA_SRC}" ]; then
-    mkdir -p "${WORKDIR}/.dylibs"
-    mv "${SCRIPT_DAKOTA_SRC}" "${WORKDIR}/.dylibs/libdakota_src.dylib"
+# Step 2c: relocate every TPL .dylib CMake dropped in .data/scripts/ into delocate's bundle dir; those are internal (not Homebrew) so delocate leaves their broken scripts-relative refs alone, and pip installs .data/scripts/* to a different place than .data/platlib/*.
+BUNDLE_DIR=$(find "${WORKDIR}" -maxdepth 3 -type d -name ".dylibs" | head -1)
+if [ -z "${BUNDLE_DIR}" ]; then
+    BUNDLE_DIR="${WORKDIR}/.dylibs"
+    mkdir -p "${BUNDLE_DIR}"
+fi
+BUNDLE_REL=$(python3 -c "import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" "${BUNDLE_DIR}" "${WORKDIR}")
+SCRIPTS_DIR=$(find "${WORKDIR}" -type d -path "*.data/scripts" | head -1)
+if [ -n "${SCRIPTS_DIR}" ]; then
+    while IFS= read -r lib; do
+        base=$(basename "${lib}")
+        if [ -e "${BUNDLE_DIR}/${base}" ]; then
+            rm -f "${lib}"
+        else
+            mv "${lib}" "${BUNDLE_DIR}/${base}"
+        fi
+    done < <(find "${SCRIPTS_DIR}" -maxdepth 1 -type f -name "*.dylib")
 fi
 
-# Step 3: rewrite install names to account for the .data/platlib indirection
-# (see header comment). Replace any occurrence of
-#   @loader_path/../../../../.dylibs/
-# with
-#   @loader_path/../../.dylibs/
-# in every Mach-O file under the package directory that .data/platlib will
-# install to <site-packages>/.
+# Step 3: rewrite install names for the .data/platlib indirection (see header comment) and the Step 2c relocations; 2-levels-deep consumers use @loader_path/../../<BUNDLE_REL>/<lib>, files inside BUNDLE_DIR itself use a bare @loader_path/<lib>.
 fix_install_names() {
     local f="$1"
-    # otool -L lists each linked install name; rewrite anything pointing to
-    # ../../../../.dylibs/ via @loader_path.
+    local f_dir
+    f_dir=$(cd "$(dirname "${f}")" && pwd)
+    local bundle_abs
+    bundle_abs=$(cd "${BUNDLE_DIR}" && pwd)
     while read -r oldname; do
+        local base
+        base=$(basename "${oldname}")
         case "${oldname}" in
-            @loader_path/../../../../.dylibs/*)
-                newname="@loader_path/../../.dylibs/${oldname##*/.dylibs/}"
+            @loader_path/../../../../.dylibs/*|@loader_path/../../../../itis_dakota/.dylibs/*)
+                if [ "${f_dir}" = "${bundle_abs}" ]; then
+                    newname="@loader_path/${base}"
+                else
+                    newname="@loader_path/../../${BUNDLE_REL}/${base}"
+                fi
                 install_name_tool -change "${oldname}" "${newname}" "${f}"
                 ;;
-            @loader_path/../../../../itis_dakota/.dylibs/*)
-                newname="@loader_path/../../itis_dakota/.dylibs/${oldname##*/.dylibs/}"
-                install_name_tool -change "${oldname}" "${newname}" "${f}"
-                ;;
-            */libdakota_src.dylib)
-                # Relocated in Step 2c above; same depth as the other bundled .dylibs/ deps.
-                install_name_tool -change "${oldname}" "@loader_path/../../.dylibs/libdakota_src.dylib" "${f}"
+            *)
+                if [ -f "${BUNDLE_DIR}/${base}" ]; then
+                    if [ "${f_dir}" = "${bundle_abs}" ]; then
+                        newname="@loader_path/${base}"
+                    else
+                        newname="@loader_path/../../${BUNDLE_REL}/${base}"
+                    fi
+                    [ "${newname}" = "${oldname}" ] || install_name_tool -change "${oldname}" "${newname}" "${f}"
+                fi
                 ;;
         esac
     done < <(otool -L "${f}" 2>/dev/null | awk 'NR>1 {print $1}')
 }
 
-# Apply fix to all Mach-O files inside the wheel's .data/platlib tree
-# (extension modules, dylibs, and the relocated dakota binary).
+# Apply fix to all Mach-O files under .data/platlib and inside BUNDLE_DIR itself (whose members may reference each other using the pre-relocation depth).
 PLATLIB_ROOT=$(find "${WORKDIR}" -type d -path "*.data/platlib" | head -1)
-if [ -n "${PLATLIB_ROOT}" ]; then
-    while IFS= read -r f; do
-        if file "${f}" | grep -q 'Mach-O'; then
-            fix_install_names "${f}"
-        fi
-    done < <(find "${PLATLIB_ROOT}" -type f)
-fi
+for ROOT in "${PLATLIB_ROOT}" "${BUNDLE_DIR}"; do
+    if [ -n "${ROOT}" ]; then
+        while IFS= read -r f; do
+            if file "${f}" | grep -q 'Mach-O'; then
+                fix_install_names "${f}"
+            fi
+        done < <(find "${ROOT}" -type f)
+    fi
+done
 
 # Also rewrite the Python install_name in the relocated dakota binary so it
 # uses @rpath instead of a hardcoded path. The wrapper script sets
