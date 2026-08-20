@@ -229,26 +229,15 @@ fix_install_names() {
     while read -r oldname; do
         local base
         base=$(basename "${oldname}")
-        case "${oldname}" in
-            @loader_path/../../../../.dylibs/*|@loader_path/../../../../itis_dakota/.dylibs/*)
-                if [ "${f_dir}" = "${bundle_abs}" ]; then
-                    newname="@loader_path/${base}"
-                else
-                    newname="@loader_path/../../${BUNDLE_REL}/${base}"
-                fi
-                install_name_tool -change "${oldname}" "${newname}" "${f}"
-                ;;
-            *)
-                if [ -f "${BUNDLE_DIR}/${base}" ]; then
-                    if [ "${f_dir}" = "${bundle_abs}" ]; then
-                        newname="@loader_path/${base}"
-                    else
-                        newname="@loader_path/../../${BUNDLE_REL}/${base}"
-                    fi
-                    [ "${newname}" = "${oldname}" ] || install_name_tool -change "${oldname}" "${newname}" "${f}"
-                fi
-                ;;
-        esac
+        if [ -f "${BUNDLE_DIR}/${base}" ]; then
+            local newname
+            if [ "${f_dir}" = "${bundle_abs}" ]; then
+                newname="@loader_path/${base}"
+            else
+                newname="@loader_path/../../${BUNDLE_REL}/${base}"
+            fi
+            [ "${newname}" = "${oldname}" ] || install_name_tool -change "${oldname}" "${newname}" "${f}"
+        fi
     done < <(otool -L "${f}" 2>/dev/null | awk 'NR>1 {print $1}')
 }
 
