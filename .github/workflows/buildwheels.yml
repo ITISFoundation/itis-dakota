@@ -105,10 +105,11 @@ jobs:
             make get-dakota-src
           fi
       - name: Restore ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: .ccache
-          key: ccache-linux-${{ matrix.arch }}-${{ github.sha }}
+          # Keyed by compile-affecting inputs, not github.sha, so any one completed run (many get cancelled by cancel-in-progress before the slower macOS job finishes) warms the cache for every commit sharing those inputs.
+          key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
           restore-keys: ccache-linux-${{ matrix.arch }}-
       - name: Ensure ccache dir exists
         run: mkdir -p .ccache .cibw_wheels_safe
@@ -121,6 +122,13 @@ jobs:
             }}/.ccache,target=/project/.ccache --mount type=bind,source=${{
             github.workspace
             }}/.cibw_wheels_safe,target=/project/.cibw_wheels_safe
+      # Save right after the compile-heavy step, not at job end, so a completed build is persisted even if a later step (tests, upload) fails or the job is cancelled.
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: .ccache
+          key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
         # Docker Desktop on macOS sometimes corrupts wheels via `docker cp`
         # from the cibuildwheel container (intermittent BadCRC). repair_wheel.sh
@@ -344,10 +352,11 @@ jobs:
           MAC_MAJOR=$(sw_vers -productVersion | cut -d. -f1).0
           echo "MACOSX_DEPLOYMENT_TARGET=$MAC_MAJOR" >> "$GITHUB_ENV"
       - name: Restore ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/Library/Caches/ccache
-          key: ccache-macos-${{ matrix.arch }}-${{ github.sha }}
+          # Keyed by compile-affecting inputs, not github.sha, so any one completed run (many get cancelled by cancel-in-progress before the slower macOS job finishes) warms the cache for every commit sharing those inputs.
+          key: ccache-macos-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
           restore-keys: ccache-macos-${{ matrix.arch }}-
       - name: Zero ccache stats
         run: ccache --zero-stats
@@ -355,6 +364,13 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.cibw-build }}
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
+      # Save right after the compile-heavy step, not at job end, so a completed build is persisted even if a later step (tests, upload) fails or the job is cancelled.
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: ~/Library/Caches/ccache
+          key: ccache-macos-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
         run: |
           python3 - <<'PY'
