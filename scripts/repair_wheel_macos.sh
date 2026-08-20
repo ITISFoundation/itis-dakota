@@ -280,6 +280,73 @@ if [ -n "${RELOCATED_DAKOTA}" ]; then
     done < <(otool -L "${RELOCATED_DAKOTA}" 2>/dev/null | awk 'NR>1 {print $1}')
 fi
 
+# Step 3b: dedupe SONAME-variant copies (e.g. libfoo.dylib, libfoo.16.dylib, libfoo.16.1.0.dylib installed as 3 full copies instead of symlinks, notably Trilinos/teuchos). `wheel pack` dereferences symlinks into full copies again, so instead rewrite every consumer's reference to one canonical filename and delete the rest outright.
+python3 - "${WORKDIR}" "${BUNDLE_DIR}" <<'PYEOF'
+import os
+import subprocess
+import sys
+
+workdir, bundle_dir = sys.argv[1], sys.argv[2]
+
+def stem_and_depth(filename):
+    name = filename[:-len(".dylib")]
+    parts = name.split(".")
+    depth = 0
+    while len(parts) > 1 and parts[-1].isdigit():
+        parts.pop()
+        depth += 1
+    return ".".join(parts), depth
+
+def is_macho(path):
+    with open(path, "rb") as f:
+        magic = f.read(4)
+    return magic in (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca")
+
+groups = {}
+for name in os.listdir(bundle_dir):
+    path = os.path.join(bundle_dir, name)
+    if not name.endswith(".dylib") or os.path.islink(path) or not os.path.isfile(path):
+        continue
+    stem, depth = stem_and_depth(name)
+    groups.setdefault(stem, []).append((depth, name))
+
+rename_map = {}
+for stem, members in groups.items():
+    if len(members) < 2:
+        continue
+    sizes = [os.path.getsize(os.path.join(bundle_dir, name)) for _, name in members]
+    # Same content, different embedded install-name string (e.g. "libfoo.dylib" vs
+    # "libfoo.16.1.0.dylib") pads the Mach-O to a slightly different size; a few
+    # bytes of difference is that padding, not different compiled code.
+    if max(sizes) - min(sizes) > 4096:
+        continue
+    members.sort(key=lambda item: (item[0], item[1]))
+    _, keep = members[-1]
+    for _, name in members[:-1]:
+        rename_map[name] = keep
+
+if rename_map:
+    all_files = []
+    for root, _dirs, files in os.walk(workdir):
+        for name in files:
+            path = os.path.join(root, name)
+            if not os.path.islink(path) and is_macho(path):
+                all_files.append(path)
+
+    for f in all_files:
+        out = subprocess.run(["otool", "-L", f], capture_output=True, text=True).stdout
+        for line in out.splitlines()[1:]:
+            oldref = line.split()[0] if line.split() else ""
+            base = os.path.basename(oldref)
+            if base in rename_map:
+                newref = oldref[: -len(base)] + rename_map[base]
+                subprocess.run(["install_name_tool", "-change", oldref, newref, f], check=True)
+
+    for name in rename_map:
+        os.remove(os.path.join(bundle_dir, name))
+    print(f"Deduped {len(rename_map)} SONAME-variant copies: {rename_map}")
+PYEOF
+
 # Step 4: re-codesign every Mach-O file we modified. macOS requires an
 # ad-hoc signature (or stricter) for arm64 binaries to be loadable.
 while IFS= read -r f; do
