@@ -250,6 +250,7 @@ jobs:
         run: python3 scripts/submit_sbom_snapshot.py "${WHEEL}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNAPSHOT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         continue-on-error: true
 
   dependency-review:

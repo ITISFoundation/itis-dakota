@@ -77,7 +77,9 @@ def main() -> int:
 
     payload = {
         "version": 0,
-        "sha": os.environ["GITHUB_SHA"],
+        # PR-triggered runs must use the PR head SHA, not GITHUB_SHA (the
+        # ephemeral merge commit), so dependency-review-action can find it.
+        "sha": os.environ.get("SNAPSHOT_SHA", os.environ["GITHUB_SHA"]),
         "ref": os.environ["GITHUB_REF"],
         "job": {
             "correlator": f"{os.environ.get('GITHUB_WORKFLOW', 'buildwheels')}_sbom-submission",
