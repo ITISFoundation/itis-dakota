@@ -200,6 +200,13 @@ PYEOF
     chmod 755 "${SCRIPT_DAKOTA}"
 fi
 
+# Step 2c: relocate libdakota_src.dylib into .dylibs/ (delocate leaves it in .data/scripts/ since it's not an external dep, but that breaks after install; Step 3 rewrites references to it).
+SCRIPT_DAKOTA_SRC=$(find "${WORKDIR}" -type f -path "*.data/scripts/libdakota_src.dylib" | head -1)
+if [ -n "${SCRIPT_DAKOTA_SRC}" ]; then
+    mkdir -p "${WORKDIR}/.dylibs"
+    mv "${SCRIPT_DAKOTA_SRC}" "${WORKDIR}/.dylibs/libdakota_src.dylib"
+fi
+
 # Step 3: rewrite install names to account for the .data/platlib indirection
 # (see header comment). Replace any occurrence of
 #   @loader_path/../../../../.dylibs/
@@ -220,6 +227,10 @@ fix_install_names() {
             @loader_path/../../../../itis_dakota/.dylibs/*)
                 newname="@loader_path/../../itis_dakota/.dylibs/${oldname##*/.dylibs/}"
                 install_name_tool -change "${oldname}" "${newname}" "${f}"
+                ;;
+            */libdakota_src.dylib)
+                # Relocated in Step 2c above; same depth as the other bundled .dylibs/ deps.
+                install_name_tool -change "${oldname}" "@loader_path/../../.dylibs/libdakota_src.dylib" "${f}"
                 ;;
         esac
     done < <(otool -L "${f}" 2>/dev/null | awk 'NR>1 {print $1}')
