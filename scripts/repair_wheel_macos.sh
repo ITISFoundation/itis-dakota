@@ -280,7 +280,7 @@ if [ -n "${RELOCATED_DAKOTA}" ]; then
     done < <(otool -L "${RELOCATED_DAKOTA}" 2>/dev/null | awk 'NR>1 {print $1}')
 fi
 
-# Step 3b: dedupe SONAME-variant copies (e.g. libfoo.dylib, libfoo.16.dylib, libfoo.16.1.0.dylib installed as 3 full copies instead of symlinks, notably Trilinos/teuchos). `wheel pack` dereferences symlinks into full copies again, so instead rewrite every consumer's reference to one canonical filename and delete the rest outright.
+# Step 3b: dedupe SONAME-variant copies (e.g. libfoo.dylib/.16.dylib/.16.1.0.dylib as 3 full copies instead of symlinks, since `wheel pack` dereferences symlinks); rewrite references to one canonical filename and delete the rest.
 python3 - "${WORKDIR}" "${BUNDLE_DIR}" <<'PYEOF'
 import os
 import subprocess
@@ -315,9 +315,7 @@ for stem, members in groups.items():
     if len(members) < 2:
         continue
     sizes = [os.path.getsize(os.path.join(bundle_dir, name)) for _, name in members]
-    # Same content, different embedded install-name string (e.g. "libfoo.dylib" vs
-    # "libfoo.16.1.0.dylib") pads the Mach-O to a slightly different size; a few
-    # bytes of difference is that padding, not different compiled code.
+    # A few bytes of size difference is just the longer embedded install-name string, not different compiled code.
     if max(sizes) - min(sizes) > 4096:
         continue
     members.sort(key=lambda item: (item[0], item[1]))
