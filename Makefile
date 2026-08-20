@@ -49,8 +49,9 @@ wheel-macos: cache-clean clean $(VENV)
 		$(VENV_BIN)/cibuildwheel --platform macos
 
 # One-time install of macOS build dependencies via Homebrew.
+# uv is here, not before-all, since cibuildwheel needs it before that runs.
 brew-deps:
-	HOMEBREW_NO_INSTALL_UPGRADE=1 brew install --quiet boost hdf5 gsl lapack ccache cmake ninja gcc
+	HOMEBREW_NO_INSTALL_UPGRADE=1 brew install --quiet boost hdf5 gsl lapack ccache cmake ninja gcc uv
 	# Homebrew's gcc formula does NOT create an unversioned `gfortran`
 	# symlink (only versioned ones like gfortran-15). Create one so
 	# FC=$(brew --prefix)/bin/gfortran works for CMake's Fortran probe.

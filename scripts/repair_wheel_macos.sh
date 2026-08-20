@@ -200,41 +200,58 @@ PYEOF
     chmod 755 "${SCRIPT_DAKOTA}"
 fi
 
-# Step 3: rewrite install names to account for the .data/platlib indirection
-# (see header comment). Replace any occurrence of
-#   @loader_path/../../../../.dylibs/
-# with
-#   @loader_path/../../.dylibs/
-# in every Mach-O file under the package directory that .data/platlib will
-# install to <site-packages>/.
+# Step 2c: move TPL .dylibs from .data/scripts/ into delocate bundle dir.
+BUNDLE_DIR=$(find "${WORKDIR}" -maxdepth 3 -type d -name ".dylibs" | head -1)
+if [ -z "${BUNDLE_DIR}" ]; then
+    BUNDLE_DIR="${WORKDIR}/.dylibs"
+    mkdir -p "${BUNDLE_DIR}"
+fi
+BUNDLE_REL=$(python3 -c "import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" "${BUNDLE_DIR}" "${WORKDIR}")
+SCRIPTS_DIR=$(find "${WORKDIR}" -type d -path "*.data/scripts" | head -1)
+if [ -n "${SCRIPTS_DIR}" ]; then
+    while IFS= read -r lib; do
+        base=$(basename "${lib}")
+        if [ -e "${BUNDLE_DIR}/${base}" ]; then
+            rm -f "${lib}"
+        else
+            mv "${lib}" "${BUNDLE_DIR}/${base}"
+        fi
+    done < <(find "${SCRIPTS_DIR}" -maxdepth 1 -type f -name "*.dylib")
+fi
+
+# Step 3: rewrite install names for .data/platlib + Step 2c moves.
 fix_install_names() {
     local f="$1"
-    # otool -L lists each linked install name; rewrite anything pointing to
-    # ../../../../.dylibs/ via @loader_path.
+    local f_dir
+    f_dir=$(cd "$(dirname "${f}")" && pwd)
+    local bundle_abs
+    bundle_abs=$(cd "${BUNDLE_DIR}" && pwd)
     while read -r oldname; do
-        case "${oldname}" in
-            @loader_path/../../../../.dylibs/*)
-                newname="@loader_path/../../.dylibs/${oldname##*/.dylibs/}"
-                install_name_tool -change "${oldname}" "${newname}" "${f}"
-                ;;
-            @loader_path/../../../../itis_dakota/.dylibs/*)
-                newname="@loader_path/../../itis_dakota/.dylibs/${oldname##*/.dylibs/}"
-                install_name_tool -change "${oldname}" "${newname}" "${f}"
-                ;;
-        esac
+        local base
+        base=$(basename "${oldname}")
+        if [ -f "${BUNDLE_DIR}/${base}" ]; then
+            local newname
+            if [ "${f_dir}" = "${bundle_abs}" ]; then
+                newname="@loader_path/${base}"
+            else
+                newname="@loader_path/../../${BUNDLE_REL}/${base}"
+            fi
+            [ "${newname}" = "${oldname}" ] || install_name_tool -change "${oldname}" "${newname}" "${f}"
+        fi
     done < <(otool -L "${f}" 2>/dev/null | awk 'NR>1 {print $1}')
 }
 
-# Apply fix to all Mach-O files inside the wheel's .data/platlib tree
-# (extension modules, dylibs, and the relocated dakota binary).
+# Apply to .data/platlib and BUNDLE_DIR (members may cross-reference).
 PLATLIB_ROOT=$(find "${WORKDIR}" -type d -path "*.data/platlib" | head -1)
-if [ -n "${PLATLIB_ROOT}" ]; then
-    while IFS= read -r f; do
-        if file "${f}" | grep -q 'Mach-O'; then
-            fix_install_names "${f}"
-        fi
-    done < <(find "${PLATLIB_ROOT}" -type f)
-fi
+for ROOT in "${PLATLIB_ROOT}" "${BUNDLE_DIR}"; do
+    if [ -n "${ROOT}" ]; then
+        while IFS= read -r f; do
+            if file "${f}" | grep -q 'Mach-O'; then
+                fix_install_names "${f}"
+            fi
+        done < <(find "${ROOT}" -type f)
+    fi
+done
 
 # Also rewrite the Python install_name in the relocated dakota binary so it
 # uses @rpath instead of a hardcoded path. The wrapper script sets
@@ -251,6 +268,139 @@ if [ -n "${RELOCATED_DAKOTA}" ]; then
         esac
     done < <(otool -L "${RELOCATED_DAKOTA}" 2>/dev/null | awk 'NR>1 {print $1}')
 fi
+
+# Step 3b: dedupe SONAME-variant copies (wheel pack turns symlinks real).
+python3 - "${WORKDIR}" "${BUNDLE_DIR}" <<'PYEOF'
+import os
+import subprocess
+import sys
+
+workdir, bundle_dir = sys.argv[1], sys.argv[2]
+
+def stem_and_depth(filename):
+    name = filename[:-len(".dylib")]
+    parts = name.split(".")
+    depth = 0
+    while len(parts) > 1 and parts[-1].isdigit():
+        parts.pop()
+        depth += 1
+    return ".".join(parts), depth
+
+def is_macho(path):
+    with open(path, "rb") as f:
+        magic = f.read(4)
+    return magic in (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca")
+
+groups = {}
+for name in os.listdir(bundle_dir):
+    path = os.path.join(bundle_dir, name)
+    if not name.endswith(".dylib") or os.path.islink(path) or not os.path.isfile(path):
+        continue
+    stem, depth = stem_and_depth(name)
+    groups.setdefault(stem, []).append((depth, name))
+
+rename_map = {}
+for stem, members in groups.items():
+    if len(members) < 2:
+        continue
+    sizes = [os.path.getsize(os.path.join(bundle_dir, name)) for _, name in members]
+    # Size diff is just the longer embedded install-name string, not code.
+    if max(sizes) - min(sizes) > 4096:
+        continue
+    members.sort(key=lambda item: (item[0], item[1]))
+    _, keep = members[-1]
+    for _, name in members[:-1]:
+        rename_map[name] = keep
+
+if rename_map:
+    all_files = []
+    for root, _dirs, files in os.walk(workdir):
+        for name in files:
+            path = os.path.join(root, name)
+            if not os.path.islink(path) and is_macho(path):
+                all_files.append(path)
+
+    for f in all_files:
+        out = subprocess.run(["otool", "-L", f], capture_output=True, text=True).stdout
+        for line in out.splitlines()[1:]:
+            oldref = line.split()[0] if line.split() else ""
+            base = os.path.basename(oldref)
+            if base in rename_map:
+                newref = oldref[: -len(base)] + rename_map[base]
+                subprocess.run(["install_name_tool", "-change", oldref, newref, f], check=True)
+
+    for name in rename_map:
+        os.remove(os.path.join(bundle_dir, name))
+    print(f"Deduped {len(rename_map)} SONAME-variant copies: {rename_map}")
+PYEOF
+
+# Step 3c: neutralize ICU dylibs (~35% of wheel), unused by boost_regex.
+python3 - "${WORKDIR}" "${BUNDLE_DIR}" "${DELOCATE_ARCHS}" <<'PYEOF'
+import os
+import re
+import subprocess
+import sys
+
+workdir, bundle_dir, delocate_archs = sys.argv[1], sys.argv[2], sys.argv[3]
+
+icu_libs = [f for f in os.listdir(bundle_dir) if re.match(r"^libicu[a-z0-9]+\.\d+(\.\d+)*\.dylib$", f)]
+if not icu_libs:
+    sys.exit(0)
+
+def is_macho(path):
+    with open(path, "rb") as f:
+        magic = f.read(4)
+    return magic in (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca")
+
+macho_files = []
+for root, _dirs, files in os.walk(workdir):
+    for name in files:
+        path = os.path.join(root, name)
+        if not os.path.islink(path) and is_macho(path) and os.path.basename(path) not in icu_libs:
+            macho_files.append(path)
+
+# Safety: skip any ICU lib something outside the family imports from.
+unsafe = set()
+for path in macho_files:
+    out = subprocess.run(["nm", "-m", path], capture_output=True, text=True).stdout
+    for name in icu_libs:
+        stem = name.split(".")[0]
+        if f"from {stem}" in out:
+            unsafe.add(name)
+
+for name in unsafe:
+    print(f"Step 3c: skipping {name}, at least one symbol is actually imported from it")
+
+archs = [a for a in delocate_archs.split(",") if a]
+neutralized = {}
+for name in icu_libs:
+    if name in unsafe:
+        continue
+    path = os.path.join(bundle_dir, name)
+    before = os.path.getsize(path)
+
+    load_cmds = subprocess.run(["otool", "-l", path], capture_output=True, text=True).stdout
+    m = re.search(r"cmd LC_ID_DYLIB\n.*\n\s*name (\S+).*\n\s*time stamp.*\n\s*current version ([\d.]+)\n\s*compatibility version ([\d.]+)", load_cmds)
+    if not m:
+        print(f"Step 3c: skipping {name}, could not parse its LC_ID_DYLIB")
+        continue
+    install_name, current_version, compat_version = m.group(1), m.group(2), m.group(3)
+
+    stub_path = path + ".stub"
+    cmd = ["clang", "-dynamiclib", "-x", "c", "/dev/null", "-o", stub_path,
+           "-install_name", install_name,
+           "-current_version", current_version,
+           "-compatibility_version", compat_version]
+    for arch in archs:
+        cmd += ["-arch", arch]
+    subprocess.run(cmd, check=True)
+    os.replace(stub_path, path)
+    neutralized[name] = before - os.path.getsize(path)
+
+if neutralized:
+    total = sum(neutralized.values())
+    print(f"Step 3c: neutralized {len(neutralized)} ICU dylib(s), saved {total} bytes: {neutralized}")
+PYEOF
 
 # Step 4: re-codesign every Mach-O file we modified. macOS requires an
 # ad-hoc signature (or stricter) for arm64 binaries to be loadable.

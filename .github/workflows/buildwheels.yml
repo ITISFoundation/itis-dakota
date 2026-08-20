@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.12", "3.13", "3.14"]
         arch: ["x86_64", "arm64"]
         include:
           - arch: x86_64
@@ -105,10 +105,11 @@ jobs:
             make get-dakota-src
           fi
       - name: Restore ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: .ccache
-          key: ccache-linux-${{ matrix.arch }}-${{ github.sha }}
+          # Keyed by compile inputs, not sha, so one run warms many commits.
+          key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
           restore-keys: ccache-linux-${{ matrix.arch }}-
       - name: Ensure ccache dir exists
         run: mkdir -p .ccache .cibw_wheels_safe
@@ -121,6 +122,13 @@ jobs:
             }}/.ccache,target=/project/.ccache --mount type=bind,source=${{
             github.workspace
             }}/.cibw_wheels_safe,target=/project/.cibw_wheels_safe
+      # Save right after compile, before tests/cancellation can lose it.
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: .ccache
+          key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
         # Docker Desktop on macOS sometimes corrupts wheels via `docker cp`
         # from the cibuildwheel container (intermittent BadCRC). repair_wheel.sh
@@ -242,6 +250,7 @@ jobs:
         run: python3 scripts/submit_sbom_snapshot.py "${WHEEL}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNAPSHOT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         continue-on-error: true
 
   dependency-review:
@@ -267,28 +276,44 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "x86_64 (1/2)"
+          - name: "x86_64 (1/3)"
             arch: x86_64
             github-runner: "macos-15-intel"
             wheel-platform: "x86_64"
-            cibw-build: "cp310-* cp311-*"
+            cibw-build: "cp312-*"
             group: "1"
-            test-python: "3.11"
-            test-cp: "cp311"
-          - name: "x86_64 (2/2)"
+            test-python: "3.12"
+            test-cp: "cp312"
+          - name: "x86_64 (2/3)"
             arch: x86_64
             github-runner: "macos-15-intel"
             wheel-platform: "x86_64"
-            cibw-build: "cp312-* cp313-* cp314-*"
+            cibw-build: "cp313-*"
             group: "2"
+            test-python: "3.13"
+            test-cp: "cp313"
+          - name: "x86_64 (3/3)"
+            arch: x86_64
+            github-runner: "macos-15-intel"
+            wheel-platform: "x86_64"
+            cibw-build: "cp314-*"
+            group: "3"
             test-python: "3.14"
             test-cp: "cp314"
-          - name: "arm64"
+          - name: "arm64 (1/2)"
             arch: arm64
             github-runner: "macos-14"
             wheel-platform: "arm64"
-            cibw-build: "cp310-* cp311-* cp312-* cp313-* cp314-*"
-            group: "all"
+            cibw-build: "cp312-*"
+            group: "1"
+            test-python: "3.12"
+            test-cp: "cp312"
+          - name: "arm64 (2/2)"
+            arch: arm64
+            github-runner: "macos-14"
+            wheel-platform: "arm64"
+            cibw-build: "cp313-* cp314-*"
+            group: "2"
             test-python: "3.14"
             test-cp: "cp314"
 
@@ -336,10 +361,11 @@ jobs:
           MAC_MAJOR=$(sw_vers -productVersion | cut -d. -f1).0
           echo "MACOSX_DEPLOYMENT_TARGET=$MAC_MAJOR" >> "$GITHUB_ENV"
       - name: Restore ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/Library/Caches/ccache
-          key: ccache-macos-${{ matrix.arch }}-${{ github.sha }}
+          # Keyed by compile inputs, not sha, so one run warms many commits.
+          key: ccache-macos-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
           restore-keys: ccache-macos-${{ matrix.arch }}-
       - name: Zero ccache stats
         run: ccache --zero-stats
@@ -347,6 +373,13 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.cibw-build }}
           CIBW_ARCHS: ${{ matrix.wheel-platform }}
+      # Save right after compile, before tests/cancellation can lose it.
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: ~/Library/Caches/ccache
+          key: ccache-macos-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
         run: |
           python3 - <<'PY'
@@ -406,11 +439,11 @@ jobs:
           - os: macos
             arch: x86_64
             github-runner: "macos-15-intel"
-            artifact: "wheels-macos-x86_64-2"
+            artifact: "wheels-macos-x86_64-3"
           - os: macos
             arch: arm64
             github-runner: "macos-14"
-            artifact: "wheels-macos-arm64-all"
+            artifact: "wheels-macos-arm64-2"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6

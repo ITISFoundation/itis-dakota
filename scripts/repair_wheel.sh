@@ -18,6 +18,14 @@ PROJECT_ROOT="$(pwd)"
 DEST_DIR=$1
 ORIG_WHEEL=$2
 
+# Point LD_LIBRARY_PATH at extracted TPL .so files for auditwheel scan.
+LIBSCRATCH=$(mktemp -d)
+unzip -o "${ORIG_WHEEL}" "*.data/scripts/*.so*" -d "${LIBSCRATCH}" || true
+TPL_LIB_DIR=$(find "${LIBSCRATCH}" -type d -path "*.data/scripts" | head -1)
+if [ -n "${TPL_LIB_DIR}" ]; then
+    export LD_LIBRARY_PATH="${TPL_LIB_DIR}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
+
 # Step 1: Save original dakota binary from pre-repair wheel
 # In the pre-repair wheel, the binary is at itis_dakota-VERSION.data/scripts/dakota
 # After auditwheel, it gets moved to itis_dakota.scripts/dakota
@@ -30,7 +38,7 @@ if [ -z "${ORIG_BINARY}" ]; then
     auditwheel repair -w "${DEST_DIR}" "${ORIG_WHEEL}"
     REPAIRED_WHEEL=$(ls "${DEST_DIR}"/*.whl | head -n1)
     python3 "${PROJECT_ROOT}/scripts/augment_sbom.py" --wheel "${REPAIRED_WHEEL}" --repo-root "${PROJECT_ROOT}"
-    rm -rf "${TMPDIR}"
+    rm -rf "${TMPDIR}" "${LIBSCRATCH}"
     exit 0
 fi
 
@@ -55,12 +63,13 @@ if [ -d "${LIBS_DIR}" ]; then
 
     # For each NEEDED entry, find matching hashed lib and rename
     # NEEDED has SONAME like "libhdf5_hl.so.100" but hashed file is
-    # "libhdf5_hl-0b60eabd.so.100.1.2" - match on base name prefix
+    # "libhdf5_hl-0b60eabd.so.100.1.2" - match on base name prefix.
+    # Unversioned libs (libdakota_src.so) need handling too, not just N.M ones.
     for needed in ${ORIG_NEEDED}; do
-        # Extract base name: everything before .so
-        base=$(echo "${needed}" | sed 's/\.so\..*//')
-        # Find hashed lib matching this base (e.g. libhdf5_hl-*.so.*)
-        hashed_file=$(ls "${LIBS_DIR}/${base}"-*.so.* 2>/dev/null | head -1)
+        # Extract base name: everything before .so (and any version suffix)
+        base=$(echo "${needed}" | sed -E 's/\.so(\..*)?$//')
+        # Find hashed lib matching this base, e.g. libhdf5_hl-*.so*
+        hashed_file=$(ls "${LIBS_DIR}/${base}"-*.so* 2>/dev/null | head -1)
         if [ -n "${hashed_file}" ]; then
             hashed_name=$(basename "${hashed_file}")
             echo "Renaming NEEDED: ${needed} -> ${hashed_name}"
@@ -81,9 +90,53 @@ if [ -n "${CORRUPTED_BINARY}" ]; then
     chmod 755 "${CORRUPTED_BINARY}"
 fi
 
-# Step 6: Fix RPATH on .so files (same as original fix_wheel.sh)
-find "${WHEEL_NAME}" -type f -name "*.so" -exec patchelf --set-rpath '$ORIGIN/../../itis_dakota.libs' '{}' \;
+# itis_dakota.scripts/*.so are dead-weight dupes of itis_dakota.libs/.
+find "${WHEEL_NAME}/itis_dakota.scripts" -type f -name "*.so*" -print -delete
+# .data/scripts/*.so only fed the LD_LIBRARY_PATH scan; drop them too.
+find "${WHEEL_NAME}" -path "*.data/scripts/*.so*" -type f -print -delete
+DIST_INFO_DIR=$(find "${WHEEL_NAME}" -maxdepth 1 -name "*.dist-info" | head -1)
+if [ -n "${DIST_INFO_DIR}" ] && [ -f "${DIST_INFO_DIR}/RECORD" ]; then
+    grep -v -E "^itis_dakota\.scripts/.*\.so|\.data/scripts/.*\.so" "${DIST_INFO_DIR}/RECORD" > "${DIST_INFO_DIR}/RECORD.tmp"
+    mv "${DIST_INFO_DIR}/RECORD.tmp" "${DIST_INFO_DIR}/RECORD"
+fi
+
+# libboost_regex links ICU (~51MB) but uses zero symbols from it.
+BOOST_REGEX_FILE=$(find "${WHEEL_NAME}/itis_dakota.libs" -maxdepth 1 -name "libboost_regex*.so*" -type f | head -1)
+if [ -n "${BOOST_REGEX_FILE}" ]; then
+    for icu_needed in $(patchelf --print-needed "${BOOST_REGEX_FILE}" | grep -i '^libicu'); do
+        echo "Removing unused NEEDED: ${icu_needed}"
+        patchelf --remove-needed "${icu_needed}" "${BOOST_REGEX_FILE}"
+    done
+    find "${WHEEL_NAME}/itis_dakota.libs" -maxdepth 1 -name "libicu*.so*" -type f -print -delete
+    if [ -n "${DIST_INFO_DIR}" ] && [ -f "${DIST_INFO_DIR}/RECORD" ]; then
+        grep -v -E "itis_dakota\.libs/libicu(data|i18n|uc)-.*\.so" "${DIST_INFO_DIR}/RECORD" > "${DIST_INFO_DIR}/RECORD.tmp"
+        mv "${DIST_INFO_DIR}/RECORD.tmp" "${DIST_INFO_DIR}/RECORD"
+    fi
+fi
+
+# Step 6: fix RPATH depth (rel. to platlib root); skip wrapper stubs.
+find "${WHEEL_NAME}" -type f -name "*.so" | while read -r so_file; do
+    if ! head -c4 "${so_file}" | cmp -s - <(printf '\177ELF'); then
+        echo "Skipping non-ELF file: ${so_file}"
+        continue
+    fi
+    so_dir=$(dirname "${so_file}")
+    root_dir="${WHEEL_NAME}"
+    platlib_root=$(echo "${so_dir}" | grep -o '.*\.data/platlib' || true)
+    if [ -n "${platlib_root}" ]; then
+        root_dir="${platlib_root}"
+    fi
+    rel_to_root=$(realpath --relative-to="${so_dir}" "${root_dir}")
+    patchelf --set-rpath "\$ORIGIN/${rel_to_root}/itis_dakota.libs" "${so_file}"
+done
 find "${WHEEL_NAME}/itis_dakota.libs" -type f -name "*.so.*" -exec patchelf --set-rpath '$ORIGIN/' '{}' \;
+
+# Strip local/debug symbols (-7.5% wheel size); keep dynsym for dlopen.
+find "${WHEEL_NAME}" -type f \( -name "*.so*" -o -path "*itis_dakota.scripts/dakota" \) | while read -r elf_file; do
+    if head -c4 "${elf_file}" | cmp -s - <(printf '\177ELF'); then
+        strip --strip-unneeded "${elf_file}"
+    fi
+done
 
 # Step 7: Re-zip the wheel
 cd "${WHEEL_NAME}"
@@ -119,4 +172,4 @@ else
 fi
 
 # Cleanup
-rm -rf "${TMPDIR}"
+rm -rf "${TMPDIR}" "${LIBSCRATCH}"
