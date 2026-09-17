@@ -1,0 +1,14 @@
+# Keep in sync with the pin in pyproject.toml / scripts/generate_stubs.sh /
+# .github/workflows/buildwheels.yml.
+default_language_version:
+    python: python3.13
+
+repos:
+  - repo: local
+    hooks:
+      - id: stub-drift
+        name: dakota.environment stub drift
+        entry: scripts/precommit_stubs.sh
+        language: system
+        pass_filenames: false
+        always_run: true
