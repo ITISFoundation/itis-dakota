@@ -8,6 +8,7 @@ on:
       - "build_backend/**"
       - "src_patches_v624/**"
       - "scripts/**"
+      - "stubs/**"
       - "itis_dakota/**"
       - "tests/**"
       - "Makefile"
@@ -201,8 +202,28 @@ jobs:
           # already present from a prior run, e.g. cached test runners
           # or local `act` runs).
           pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*.whl
-          pip install numpy
+          pip install numpy pydantic
           pytest
+      - name: Check stubs are up to date
+        # Gated to one matrix leg: dakota.environment is already built and
+        # installed above, and the check is arch/version-independent (the
+        # pybind11-generated API surface doesn't change across platforms).
+        # Hard failure (stubgen version is pinned, so any drift here is real).
+        if: matrix.python == '3.13' && matrix.arch == 'x86_64'
+        run: |
+          pip install pybind11-stubgen==2.5.5
+          pybind11-stubgen dakota.environment -o /tmp/stub_check
+          # Same normalization as scripts/generate_stubs.sh (shared script,
+          # see scripts/normalize_stubs.py).
+          python3 scripts/normalize_stubs.py /tmp/stub_check/dakota/environment/environment.pyi
+          failed=0
+          for f in __init__.pyi environment.pyi; do
+            if ! diff "/tmp/stub_check/dakota/environment/$f" "stubs/dakota/environment/$f"; then
+              echo "::error file=stubs/dakota/environment/$f::Committed stub is stale — run 'make stubs' and commit the result."
+              failed=1
+            fi
+          done
+          exit $failed
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
@@ -412,7 +433,7 @@ jobs:
           # installed (otherwise pip skips when the same version is
           # already present from a prior run).
           pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*${{ matrix.test-cp }}*.whl
-          pip install numpy
+          pip install numpy pydantic
           pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v7
@@ -457,7 +478,7 @@ jobs:
         run: |
           pip install pytest
           pip install --force-reinstall --no-deps wheelhouse/*cp314*.whl
-          pip install numpy
+          pip install numpy pydantic
           pytest
 
   release:

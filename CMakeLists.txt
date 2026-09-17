@@ -88,6 +88,29 @@ install(FILES dakota/src/__init__.py
     COMPONENT dakota_for_python
     DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/)
 
+install(FILES stubs/dakota/environment/__init__.pyi
+              stubs/dakota/environment/environment.pyi
+              stubs/dakota/environment/py.typed
+    COMPONENT dakota_for_python
+    DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/environment/)
+
+# Dakota's own Pydantic models for its native JSON input format (the same
+# models that generate dakota.json / drive the C++ JSON parser codegen).
+# Pure Python, no compiled dependency, so it ships as plain source.
+install(DIRECTORY dakota/python/dakota/spec
+    COMPONENT dakota_for_python
+    DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/
+    PATTERN "__pycache__" EXCLUDE
+    PATTERN "*.py[cdo]" EXCLUDE)
+
+# dakota.spec ships inline types, so it needs its own empty PEP 561 marker:
+# dakota/ is a namespace package, so environment/'s py.typed doesn't cover it.
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/spec_py.typed "")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/spec_py.typed
+    COMPONENT dakota_for_python
+    DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/spec/
+    RENAME py.typed)
+
 if(APPLE)
     # Add @loader_path (delocate needs it); skip if gfortran already added it.
     install(CODE "

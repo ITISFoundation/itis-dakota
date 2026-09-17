@@ -6,8 +6,12 @@ authors = [
     {name="Werner Van Geit"}
 ]
 readme = {file = "README.md", content-type = "text/markdown"}
-dependencies = ["numpy"]
-requires-python = ">=3.8"
+dependencies = ["numpy", "pydantic>=2"]
+# dakota.spec (Pydantic 2 models: ConfigDict/model_validator/field_validator,
+# PEP 604 `X | None` unions evaluated at runtime) requires Python 3.10+;
+# floor raised to 3.12 to match the lowest Python actually built/tested by
+# the wheel matrix in .github/workflows/buildwheels.yml (3.11 is not built).
+requires-python = ">=3.12"
 dynamic = ["version"]
 
 [project.urls]
@@ -35,6 +39,9 @@ package-dir = {"itis_dakota" = "itis_dakota"}
 
 [tool.setuptools.package-data]
 itis_dakota = ["py.typed"]
+
+[dependency-groups]
+dev = ["pybind11-stubgen==2.5.5", "pre-commit"]
 
 [tool.setuptools_scm]
 version_file = "itis_dakota/_version.py"
@@ -158,4 +165,3 @@ Boost_NO_BOOST_CMAKE = "ON"
 
 [tool.pytest.ini_options]
 addopts = "--ignore=dakota/ --ignore=tmp/"
-
