@@ -10,7 +10,7 @@ dependencies = ["numpy", "pydantic>=2"]
 # dakota.spec (Pydantic 2 models: ConfigDict/model_validator/field_validator,
 # PEP 604 `X | None` unions evaluated at runtime) requires Python 3.10+;
 # floor raised to 3.12 to match the lowest Python actually built/tested by
-# the wheel matrix in .github/workflows/buildwheels.yml.
+# the wheel matrix in .github/workflows/buildwheels.yml (3.11 is not built).
 requires-python = ">=3.12"
 dynamic = ["version"]
 

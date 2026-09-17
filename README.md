@@ -47,13 +47,16 @@ Typing / stubs
 `dakota.environment` is a compiled pybind11 extension, so its type stubs
 (`stubs/dakota/environment/{__init__.pyi,environment.pyi}`) are generated,
 not hand-written. After bumping the Dakota version or touching
-`dakota/src/dakota_python.cpp` via a patch, rebuild the wheel and
-regenerate the stubs, then commit the result:
+`dakota/src/dakota_python.cpp` via a patch, regenerate the stubs, then
+commit the result:
 
 ```
-make wheel
 make stubs
 ```
+
+`make stubs` builds the wheel first when `wheelhouse/` is empty. Commit the
+regenerated stubs: the wheel used for generation still ships the previous
+ones, and wheels built afterwards bundle the committed stubs.
 
 CI fails (one linux matrix leg) if the committed stubs no longer match the
 compiled module.

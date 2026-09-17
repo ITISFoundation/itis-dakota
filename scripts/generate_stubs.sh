@@ -21,13 +21,13 @@ echo "Generating stubs for Python $PYVER (wheel: $WHEEL)"
 
 STUBGEN=pybind11-stubgen==2.5.5
 
-if command -v uv >/dev/null 2>&1; then
-	uv venv --python "$PYVER" "$STUBS_VENV"
-	uv pip install --python "$STUBS_VENV/bin/python" numpy "$STUBGEN" "$WHEEL"
-else
-	"python$PYVER" -m venv "$STUBS_VENV"
-	"$STUBS_VENV/bin/pip" install numpy "$STUBGEN" "$WHEEL"
+# uv fetches the interpreter matching the wheel ABI, so the host needs none:
+if ! command -v uv >/dev/null 2>&1; then
+	echo "stub generation requires uv: https://docs.astral.sh/uv/" >&2
+	exit 1
 fi
+uv venv --python "$PYVER" "$STUBS_VENV"
+uv pip install --python "$STUBS_VENV/bin/python" numpy "$STUBGEN" "$WHEEL"
 
 OUT=$(mktemp -d)
 "$STUBS_VENV/bin/pybind11-stubgen" dakota.environment -o "$OUT"
