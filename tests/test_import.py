@@ -4,6 +4,16 @@ def test_import_dakota():
 def test_import_env():
     import dakota.environment as dakenv
 
+def test_spec_ships_py_typed():
+    # dakota/ is a namespace package, so dakota/environment's py.typed does
+    # not cover dakota.spec (PEP 561): it needs its own marker or type
+    # checkers ignore its inline annotations.
+    from pathlib import Path
+
+    import dakota.spec
+
+    assert (Path(dakota.spec.__file__).parent / "py.typed").is_file()
+
 def test_import_spec():
     from dakota.spec.study import DakotaStudy
 
