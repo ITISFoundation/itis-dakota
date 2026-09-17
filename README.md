@@ -55,8 +55,8 @@ make wheel
 make stubs
 ```
 
-CI flags (via a warn-only annotation, does not fail the build) if the
-committed stubs no longer match the compiled module.
+CI fails (one linux matrix leg) if the committed stubs no longer match the
+compiled module.
 
 Dakota's native JSON input format
 ----------------------------------

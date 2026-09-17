@@ -19,12 +19,14 @@ PYVER=$(echo "$PYTAG" | sed -E 's/cp([0-9])([0-9]+)/\1.\2/')
 
 echo "Generating stubs for Python $PYVER (wheel: $WHEEL)"
 
+STUBGEN=pybind11-stubgen==2.5.5
+
 if command -v uv >/dev/null 2>&1; then
 	uv venv --python "$PYVER" "$STUBS_VENV"
-	uv pip install --python "$STUBS_VENV/bin/python" numpy pybind11-stubgen "$WHEEL"
+	uv pip install --python "$STUBS_VENV/bin/python" numpy "$STUBGEN" "$WHEEL"
 else
 	"python$PYVER" -m venv "$STUBS_VENV"
-	"$STUBS_VENV/bin/pip" install numpy pybind11-stubgen "$WHEEL"
+	"$STUBS_VENV/bin/pip" install numpy "$STUBGEN" "$WHEEL"
 fi
 
 OUT=$(mktemp -d)
