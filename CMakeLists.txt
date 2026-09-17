@@ -103,6 +103,14 @@ install(DIRECTORY dakota/python/dakota/spec
     PATTERN "__pycache__" EXCLUDE
     PATTERN "*.py[cdo]" EXCLUDE)
 
+# dakota.spec ships inline types, so it needs its own empty PEP 561 marker:
+# dakota/ is a namespace package, so environment/'s py.typed doesn't cover it.
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/spec_py.typed "")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/spec_py.typed
+    COMPONENT dakota_for_python
+    DESTINATION ${PY_BUILD_CMAKE_LIB_DIRECTORY}/dakota/spec/
+    RENAME py.typed)
+
 if(APPLE)
     # Add @loader_path (delocate needs it); skip if gfortran already added it.
     install(CODE "
