@@ -90,7 +90,7 @@ pipwheel: cache-clean clean
 	MAKEFLAGS="--no-print-directory" pip wheel -v . -w wheel
 
 clean:
-	rm -rf dist/ wheel/ build/ *.whl wheelhouse/ $(TEST_VENV)
+	rm -rf dist/ wheel/ build/ *.whl wheelhouse/ $(TEST_VENV) .venv-stubs/ .venv-test-debug/
 
 cache-clean:
 	rm -rf .py-build-cmake_cache/
