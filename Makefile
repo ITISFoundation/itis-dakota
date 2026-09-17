@@ -8,11 +8,16 @@ UV := $(shell command -v uv 2>/dev/null)
 $(VENV):
 ifdef UV
 	uv venv $(VENV)
-	uv pip install --python $(VENV_BIN)/python --upgrade pip cibuildwheel
+	uv pip install --python $(VENV_BIN)/python --upgrade pip cibuildwheel pre-commit
 else
 	python3 -m venv $(VENV)
-	$(VENV_BIN)/pip install --upgrade pip cibuildwheel
+	$(VENV_BIN)/pip install --upgrade pip cibuildwheel pre-commit
 endif
+	-$(VENV_BIN)/pre-commit install -t pre-commit -t post-checkout -t post-merge
+
+# Idempotent: re-run after cloning with a pre-existing $(VENV).
+hooks:
+	$(VENV_BIN)/pre-commit install -t pre-commit -t post-checkout -t post-merge
 
 all:
 
@@ -90,7 +95,7 @@ pipwheel: cache-clean clean
 	MAKEFLAGS="--no-print-directory" pip wheel -v . -w wheel
 
 clean:
-	rm -rf dist/ wheel/ build/ *.whl wheelhouse/ $(TEST_VENV) .venv-stubs/ .venv-test-debug/
+	rm -rf dist/ wheel/ build/ *.whl wheelhouse/ $(TEST_VENV) .venv-stubs .venv-stubs/ .venv-test-debug/
 
 cache-clean:
 	rm -rf .py-build-cmake_cache/
