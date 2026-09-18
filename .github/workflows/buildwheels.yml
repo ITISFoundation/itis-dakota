@@ -5,6 +5,7 @@ on:
     paths:
       - "CMakeLists.txt"
       - "pyproject.toml"
+      - "requirements.txt"
       - "build_backend/**"
       - "src_patches_v624/**"
       - "scripts/**"
@@ -273,6 +274,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPSHOT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         continue-on-error: true
+
+  lock-check:
+    name: Dependency lock check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: pip install uv
+      - name: Check requirements.txt matches pyproject.toml
+        run: ./scripts/check_requirements_lock.sh
 
   dependency-review:
     name: Dependency review

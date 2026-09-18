@@ -12,3 +12,10 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: requirements-lock
+        name: requirements.txt matches pyproject.toml
+        entry: scripts/check_requirements_lock.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        files: ^(pyproject\.toml|requirements\.txt)$

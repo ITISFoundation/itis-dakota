@@ -19,6 +19,14 @@ endif
 hooks:
 	$(VENV_BIN)/pre-commit install -t pre-commit -t post-checkout -t post-merge
 
+# requirements.txt is the committed lock GitHub's dependency graph and
+# dependency-review parse; regenerate it after editing pyproject.toml deps.
+lock:
+	uv pip compile pyproject.toml --python-version 3.12 -o requirements.txt
+
+lock-check:
+	./scripts/check_requirements_lock.sh
+
 all:
 
 CCACHE_HOST_DIR := $(HOME)/.cache/itis-dakota-ccache
