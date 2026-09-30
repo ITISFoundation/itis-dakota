@@ -141,6 +141,49 @@ CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 # this yields macosx_13_x (macos-13/x86_64) and macosx_14_0 (macos-14/arm64)
 # wheels.
 
+# ---------------------------------------------------------------------------
+# Windows (win_amd64) — MSYS2/MinGW-w64 ucrt64 toolchain, no MSVC.
+# See SPEC-Windows.md. QUESO is not MSVC-clean and MSVC has no Fortran;
+# ucrt64 GCC/gfortran is the same mingw-w64 family SciPy uses on Windows
+# via rtools, and pacman is the analog of yum (linux) / brew (macos).
+# Dakotas's own Fortran TPLs (pecos, DIRECT) build with gfortran directly.
+# ---------------------------------------------------------------------------
+[tool.cibuildwheel.windows]
+skip = "pp* *-win32"
+repair-wheel-command = "python -m pip install --quiet delvewheel pefile; python ./scripts/repair_wheel_windows.py {dest_dir} {wheel}"
+before-all = [
+    # MSYS2 ships preinstalled on GitHub windows runners at C:\msys64.
+    # `patch`/`make` are needed by `make get-dakota-src`; perl lives in
+    # usr/bin already for Dakota's JSON codegen (core JSON::PP module).
+    "C:/msys64/usr/bin/bash.exe -lc \"pacman -Sy --noconfirm; pacman -S --noconfirm --needed patch make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-boost mingw-w64-ucrt-x86_64-hdf5 mingw-w64-ucrt-x86_64-gsl mingw-w64-ucrt-x86_64-lapack mingw-w64-ucrt-x86_64-ccache\"",
+]
+
+[tool.cibuildwheel.windows.environment]
+# ucrt64 first so CMake/CC resolve gcc/g++/gfortran, never MSVC.
+# usr/bin adds perl/tar/sed/patch for Dakota's configure + codegen steps.
+PATH = "C:/msys64/ucrt64/bin;C:/msys64/usr/bin;C:/msys64/bin;$PATH"
+CC = "gcc"
+CXX = "g++"
+FC = "gfortran"
+# FindBLAS/FindLAPACK/FindHDF5/FindGSL search prefixes (analog of the
+# BOOST_*/HDF5_ROOT/GSL_ROOT_DIR vars the linux/mac sections set).
+CMAKE_PREFIX_PATH = "C:/msys64/ucrt64"
+BOOST_ROOT = "C:/msys64/ucrt64"
+BOOST_LIBRARYDIR = "C:/msys64/ucrt64/lib"
+BOOST_INCLUDEDIR = "C:/msys64/ucrt64/include"
+HDF5_ROOT = "C:/msys64/ucrt64"
+GSL_ROOT_DIR = "C:/msys64/ucrt64"
+# ccache on Windows: same launcher setup as linux/mac; cache dir kept
+# off D: so the runner's disk layout doesn't matter; persisted via
+# actions/cache in the wheels-windows CI job.
+CCACHE_DIR = "C:/ccache-win"
+CCACHE_MAXSIZE = "1G"
+CCACHE_COMPRESS = "true"
+CCACHE_SLOPPINESS = "include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,clang_index_store,system_headers,locale"
+CCACHE_NOHASHDIR = "true"
+CMAKE_C_COMPILER_LAUNCHER = "ccache"
+CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
+
 [tool.py-build-cmake.cmake]
 source_path = "."
 generator = "Ninja"
@@ -161,6 +204,12 @@ CMAKE_CXX_FLAGS = "-Wno-psabi"
 # Homebrew Boost 1.90's BoostConfig.cmake is broken (missing
 # per-component configs). Force the legacy FindBoost module on macOS.
 [tool.py-build-cmake.mac.cmake.options]
+Boost_NO_BOOST_CMAKE = "ON"
+
+# MSYS2 Boost ships the boostorg BoostConfig.cmake generated for MSVC
+# component naming, which mismatches the mingw-built libboost_*.dll.a
+# names. Legacy FindBoost + BOOST_ROOT/BOOST_LIBRARYDIR env finds them.
+[tool.py-build-cmake.windows.cmake.options]
 Boost_NO_BOOST_CMAKE = "ON"
 
 [tool.pytest.ini_options]
