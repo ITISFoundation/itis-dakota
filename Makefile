@@ -118,6 +118,8 @@ DAKOTA_SRC_TARBALL_URL := https://github.com/snl-dakota/dakota/releases/download
 # a substitution of an older surfpack revision that mismatches the NCSU DIRECT
 # Fortran interface in packages/external (removed cdata/icsize args), causing a
 # segfault in dirheader_() whenever a Kriging/EGO surrogate is built.
+# On Windows (wheels-windows CI job) run this from MSYS2 bash after installing
+# `make` + `patch` via pacman; curl/tar/sed ship with msys.
 get-dakota-src:
 	rm -rf dakota
 	mkdir dakota

@@ -1,1 +1,5 @@
 itis_dakota/_version.py export-subst
+# Windows CI checks out with core.autocrlf=true (actions/checkout default);
+# CRLF would corrupt src_patches_v624/*.patch for `patch -p1` under msys,
+# and embed ^M in Makefile/CMake recipes run by bash. Keep text files LF.
+* text=auto eol=lf
