@@ -57,15 +57,22 @@ install(TARGETS dakota
 install(TARGETS dakota_src
         LIBRARY
         COMPONENT dakota_for_python
-        LIBRARY DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
+        LIBRARY DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY}
+        # On Windows the SHARED runtime artifact is a DLL, installed under
+        # the RUNTIME kind (LIBRARY applies only on unix). No RUNTIME
+        # artifact exists on Linux/macOS, so this is a no-op there.
+        RUNTIME DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
-# Glob+install whatever TPL .so/.dylib got built, for auditwheel/delocate.
+# Glob+install whatever TPL .so/.dylib/.dll got built, for auditwheel/delocate/
+# delvewheel. On mingw a built SHARED TPL is lib<name>.dll (+ lib<name>.dll.a
+# import lib, which the *.dll pattern skips).
 install(CODE "
   file(GLOB_RECURSE _dakota_tpl_shared_libs
        \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.so\"
        \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.so.*\"
-       \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.dylib\")
-  list(FILTER _dakota_tpl_shared_libs EXCLUDE REGEX \"/libdakota_src\\\\.(so|dylib)|/environment\\\\.\")
+       \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.dylib\"
+       \"${CMAKE_CURRENT_BINARY_DIR}/dakota/*.dll\")
+  list(FILTER _dakota_tpl_shared_libs EXCLUDE REGEX \"/libdakota_src\\\\.(so|dylib|dll)|/environment\\\\.\")
   foreach(_lib IN LISTS _dakota_tpl_shared_libs)
     file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${PY_BUILD_CMAKE_BIN_DIRECTORY}\"
          TYPE SHARED_LIBRARY

@@ -54,7 +54,7 @@ V7df: `release`, `test-pypi`, `pypi` jobs ⊥ consume windows artifacts.
 
 id|status|task|cites
 T1hk|x|pyproject.toml: add `[tool.cibuildwheel.windows]` (+environment): pacman before-all, ucrt64 PATH/CC/CXX/FC/TPL roots, ccache, skip win32, repair → repair_wheel_windows.py|C.toolchain,C.tpls,I.toml,V6bc
-T2jn|.|CMakeLists.txt: collect built `*.dll` TPLs + `libdakota_src.dll` into `.data/scripts` on MINGW (excl `environment*.pyd`, `*.dll.a` import libs); keep unix globs inert|V1kq,C.nortk
+T2jn|x|CMakeLists.txt: collect built `*.dll` TPLs + `libdakota_src.dll` into `.data/scripts` on MINGW (excl `environment*.pyd`, `*.dll.a` import libs); keep unix globs inert|V1kq,C.nortk
 T3lp|.|get-dakota-src windows-usable: msys bash path documented/wired in CI (curl+tar+patch via msys); Makefile unix behavior unchanged|C.src,V5vz
 T4qs|.|scripts/repair_wheel_windows.py: PATH-stage `.data/scripts` DLLs → `delvewheel repair` for pyd → stage exe DLL closure next to `dakota.exe` → RECORD rewrite → zip verify|V1kq,V2pn,I.cmd,C.vend
 T5tv|.|buildwheels.yml: `wheels-windows` job (dakota-src cache, pacman, ccache cache, cibuildwheel cp313/AMD64, wheel integrity, pytest, upload artifact; excluded from release/pypi needs)|V3rw,V6bc,V7df,I.ci
