@@ -33,7 +33,8 @@ PoC scope: cp313 only, CI artifact only, ⊥ PyPI publish.
 
 - toml: `[tool.cibuildwheel.windows]` + `…windows.environment` → windows build config.
 - cmd: `scripts/repair_wheel_windows.py {dest_dir} {wheel}` → repaired wheel in dest_dir.
-- ci: job `wheels-windows` → artifact `wheels-windows-cp313_win_amd64`.
+- ci: job `wheels-windows` → artifact `windows-poc-cp313_win_amd64` (name kept off
+  the `wheels-*` glob so publish jobs ⊥ see it, PoC only).
 - cmd: `make get-dakota-src` unchanged on unix; runs under msys bash on windows.
 - env: CI sets `CIBW_BUILD=cp313-*`, `CIBW_ARCHS=AMD64`.
 
@@ -56,10 +57,11 @@ id|status|task|cites
 T1hk|x|pyproject.toml: add `[tool.cibuildwheel.windows]` (+environment): pacman before-all, ucrt64 PATH/CC/CXX/FC/TPL roots, ccache, skip win32, repair → repair_wheel_windows.py|C.toolchain,C.tpls,I.toml,V6bc
 T2jn|x|CMakeLists.txt: collect built `*.dll` TPLs + `libdakota_src.dll` into `.data/scripts` on MINGW (excl `environment*.pyd`, `*.dll.a` import libs); keep unix globs inert|V1kq,C.nortk
 T3lp|x|get-dakota-src windows-usable: msys bash path documented/wired in CI (curl+tar+patch via msys); Makefile unix behavior unchanged|C.src,V5vz
-T4qs|.|scripts/repair_wheel_windows.py: PATH-stage `.data/scripts` DLLs → `delvewheel repair` for pyd → stage exe DLL closure next to `dakota.exe` → RECORD rewrite → zip verify|V1kq,V2pn,I.cmd,C.vend
-T5tv|.|buildwheels.yml: `wheels-windows` job (dakota-src cache, pacman, ccache cache, cibuildwheel cp313/AMD64, wheel integrity, pytest, upload artifact; excluded from release/pypi needs)|V3rw,V6bc,V7df,I.ci
+T4qs|x|scripts/repair_wheel_windows.py: PATH-stage `.data/scripts` DLLs → `delvewheel repair` for pyd → stage exe DLL closure next to `dakota.exe` → RECORD rewrite → zip verify|V1kq,V2pn,I.cmd,C.vend
+T5tv|x|buildwheels.yml: `wheels-windows` job (dakota-src cache, pacman, ccache cache, cibuildwheel cp313/AMD64, wheel integrity, pytest, upload artifact; excluded from release/pypi needs)|V3rw,V6bc,V7df,I.ci
 T6wx|.|CI iteration: mingw-port patches into src_patches_v624 as dakota/QUESO configure/compile failures demand|C.src,C.queso,V5vz
 T7za|.|README: windows support status once CI green|C.scope
+T8rb|.|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
 
 ## §B Bugs
 

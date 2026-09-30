@@ -458,6 +458,92 @@ jobs:
           name: wheels-macos-${{ matrix.wheel-platform }}-${{ matrix.group }}
           path: ./wheelhouse/*.whl
 
+  # PoC leg (SPEC-Windows.md): win_amd64 cp313 only, artifact not published.
+  # Artifact name deliberately does NOT start with `wheels-` so the
+  # release/test-pypi/pypi `wheels-*` download globs never pick it up (V7df).
+  wheels-windows:
+    name: Build wheel on windows cp313 win_amd64
+    runs-on: windows-2025
+    permissions:
+      contents: write
+    needs: tag
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        if: github.ref != 'refs/heads/master'
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v6
+        if: github.ref == 'refs/heads/master'
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.tag.outputs.new_tag }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: "pip"
+      - name: Install msys build tools (make, patch)
+        # Same toolchain cibuildwheel's before-all expects; idempotent there.
+        run: C:/msys64/usr/bin/bash.exe -lc "pacman -Sy --noconfirm; pacman -S --noconfirm --needed make patch"
+      - name: Cache Dakota source
+        uses: actions/cache@v5
+        with:
+          path: dakota
+          key: dakota-src-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
+      - name: Get dakota src
+        run: make get-dakota-src
+        env:
+          PATH: "C:/msys64/usr/bin;${{ env.PATH }}"
+      - name: Restore ccache
+        uses: actions/cache/restore@v5
+        with:
+          path: C:/ccache-win
+          key: ccache-windows-amd64-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
+          restore-keys: ccache-windows-amd64-
+      - name: Ensure ccache dir exists
+        run: mkdir -p /c/ccache-win
+      - uses: pypa/cibuildwheel@v3.4.1
+        env:
+          CIBW_BUILD: cp313-*
+          CIBW_ARCHS: AMD64
+      # Save right after compile, before tests/cancellation can lose it.
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: C:/ccache-win
+          key: ccache-windows-amd64-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
+      - name: Verify wheel integrity
+        run: |
+          python - <<'PY'
+          import zipfile, glob, sys
+          failed = False
+          for whl in sorted(glob.glob('wheelhouse/*.whl')):
+              with zipfile.ZipFile(whl) as zf:
+                  bad = zf.testzip()
+                  if bad:
+                      print(f'CORRUPTED: {whl} (first bad entry: {bad})', file=sys.stderr)
+                      failed = True
+                  else:
+                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
+          if failed:
+              sys.exit(1)
+          PY
+      - name: Run tests
+        run: |
+          pip install pytest
+          pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*cp313*.whl
+          pip install numpy pydantic
+          pytest
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-poc-cp313_win_amd64
+          path: ./wheelhouse/*.whl
+
   test:
     name: Test wheel on ${{ matrix.os }} ${{ matrix.arch }}
     needs: [wheels-linux, wheels-macos]
