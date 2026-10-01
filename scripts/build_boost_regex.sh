@@ -21,7 +21,14 @@
 # is forced ON for WIN32 by Dakota, MSYS2 layout=tagged => *_-mt.a names).
 # The archive's contents are never actually referenced by Dakota (it uses
 # the C++ API only, header-inlined); it just has to exist and link cleanly.
-set -euo pipefail
+set -xueo pipefail           # -x: CI logs show the exact death point; the
+                             # nested-msys layers on GH runners have burned
+                             # us thrice (see SPEC-Windows B2gh) and stay
+                             # observable on purpose.
+# Self-contained env: the CI job invokes this through nested bash layers,
+# so we cannot rely on /etc/profile having set anything.
+export PATH=/usr/bin:/ucrt64/bin:$PATH
+echo "build_boost_regex: start ($(uname -a))"
 
 BOOST_TAG=boost-1.92.0            # must match pacman's mingw-w64-ucrt-x86_64-boost
 PREFIX=/ucrt64
