@@ -509,7 +509,9 @@ jobs:
         # and nested msys step wrappers misbehave.
         run: |
           C:/msys64/usr/bin/bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-boost"
-          C:/msys64/usr/bin/bash.exe -lc "bash scripts/build_boost_regex.sh"
+          # $PWD is expanded HERE (Git Bash, /d/a/...) because an msys `bash -l`
+          # relocates cwd to $HOME — relative script paths never resolve there.
+          C:/msys64/usr/bin/bash.exe -lc "bash $PWD/scripts/build_boost_regex.sh"
       - name: Install uv
         # [tool.cibuildwheel] build-frontend = "build[uv]" — cibuildwheel needs
         # uv discoverable on PATH *before* before-all runs (macOS gets it from

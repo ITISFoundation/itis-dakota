@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Run inside MSYS2 (ucrt64) on Windows from the repo root, after pacman
-# boost+gcc are installed (the wheels-windows CI job does this explicitly;
-# cibuildwheel before-all cannot, as it gets no repo-root cwd on windows).
+# Run inside MSYS2 (ucrt64) on Windows after pacman boost+gcc are installed
+# (the wheels-windows CI job does this explicitly; cibuildwheel before-all
+# cannot, as it gets no repo-root cwd on windows). cwd-independent: invoke
+# it with an absolute path — an msys LOGIN shell (`bash -lc`) cd's to $HOME.
 #
 # Why this exists: Boost.Regex went header-only in Boost 1.92 — upstream's
 # CMake superproject builds it as `add_library(boost_regex INTERFACE)` (see
