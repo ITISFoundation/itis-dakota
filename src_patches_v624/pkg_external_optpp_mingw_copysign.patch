@@ -1,0 +1,15 @@
+--- a/packages/external/OPTPP/include/globals.h
++++ b/packages/external/OPTPP/include/globals.h
+@@ -42,10 +42,11 @@
+ #define max(a,b) ((a) >= (b) ? (a) : (b))
+ #endif
+ 
+-#if defined(_WIN32) || defined(_WIN64)
++#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+ // Microsoft's starts with an underscore, which is their convention 
+ // for non-standard language extensions
+ // Leveraging boost::math copysign might be an alternative worth considering
++// (mingw provides ISO copysign/std::copysign, like every POSIX platform)
+ #define copysign _copysign
+ #endif
+ 
