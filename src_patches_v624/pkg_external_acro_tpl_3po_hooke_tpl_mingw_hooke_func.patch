@@ -1,0 +1,20 @@
+--- a/packages/external/acro/tpl/3po/hooke/hooke_tpl.cpp
++++ b/packages/external/acro/tpl/3po/hooke/hooke_tpl.cpp
+@@ -142,6 +142,17 @@
+ 
+ extern double hooke_func(double*,int);
+ 
++#ifdef _WIN32
++/* mingw-w64 note: Windows links DLLs closed-world (no undefined symbols in
++ * a shared library; the Linux .so build tolerates them). Sandia's "#if 0"
++ * edit deleted the only definition of hooke_func (the sample Woods test
++ * objective) but left the live best_nearby() referencing it. Nothing in
++ * Acro/Dakota drives this legacy hooke() path (on Linux the call would die
++ * just the same), so this stub only exists so lib3po.dll can link.
++ */
++double hooke_func(double*,int) { return 0.; }
++#endif
++
+ #if 0
+ /* WEH - edit to only build the hooke() function */
+ 
