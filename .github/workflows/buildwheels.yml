@@ -59,9 +59,6 @@ jobs:
 
   wheels-linux:
     name: Build wheel on linux ${{ matrix.python }} ${{ matrix.arch }}
-    # TEMPORARY (PR#48 windows PoC iteration): disable heavy legs; linux/macos
-    # CI stays covered on every other branch. REVERT BEFORE MERGE.
-    if: github.ref == 'refs/heads/__windows-poc-disabled__'  # TEMP PR#48: REVERT BEFORE MERGE
     runs-on: ${{ matrix.github-runner }}
     strategy:
       fail-fast: false
@@ -236,8 +233,6 @@ jobs:
 
   sbom-scan:
     name: Scan and submit wheel SBOM
-    # TEMPORARY (PR#48 windows PoC iteration): REVERT BEFORE MERGE.
-    if: github.ref == 'refs/heads/__windows-poc-disabled__'  # TEMP PR#48: REVERT BEFORE MERGE
     runs-on: ubuntu-latest
     needs: wheels-linux
     permissions:
@@ -298,9 +293,7 @@ jobs:
 
   dependency-review:
     name: Dependency review
-    # TEMPORARY (PR#48 windows PoC iteration): was
-    # `if: github.event_name == 'pull_request'`. REVERT BEFORE MERGE.
-    if: github.ref == 'refs/heads/__windows-poc-disabled__'  # TEMP PR#48: REVERT BEFORE MERGE
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     needs: sbom-scan
     permissions:
@@ -316,9 +309,6 @@ jobs:
 
   wheels-macos:
     name: Build wheels on macos ${{ matrix.name }}
-    # TEMPORARY (PR#48 windows PoC iteration): disable heavy legs; macos CI
-    # stays covered on every other branch. REVERT BEFORE MERGE.
-    if: github.ref == 'refs/heads/__windows-poc-disabled__'  # TEMP PR#48: REVERT BEFORE MERGE
     runs-on: ${{ matrix.github-runner }}
     strategy:
       fail-fast: false
@@ -468,19 +458,29 @@ jobs:
           name: wheels-macos-${{ matrix.wheel-platform }}-${{ matrix.group }}
           path: ./wheelhouse/*.whl
 
-  # PoC leg (SPEC-Windows.md): win_amd64 cp313 only, artifact not published.
-  # Artifact name deliberately does NOT start with `wheels-` so the
-  # release/test-pypi/pypi `wheels-*` download globs never pick it up (V7df).
+  # Windows leg (SPEC-Windows.md): win_amd64 × repo python set, mirroring the
+  # linux job's per-python matrix. Artifact name deliberately does NOT start
+  # with `wheels-` so the release/test-pypi/pypi `wheels-*` download globs
+  # never pick it up (V7df).
   wheels-windows:
-    name: Build wheel on windows cp313 win_amd64
+    name: Build wheel on windows ${{ matrix.python }} win_amd64
     runs-on: windows-2025
     permissions:
       contents: write
     needs: tag
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13", "3.14"]
     defaults:
       run:
         shell: bash
     steps:
+      - name: Set cibuildwheel Python version
+        run: |
+          python_version="${{ matrix.python }}"
+          cibw_python="cp${python_version/./}"
+          echo "CIBW_PYTHON=$cibw_python" >> $GITHUB_ENV
       - uses: actions/checkout@v6
         if: github.ref != 'refs/heads/master'
         with:
@@ -493,7 +493,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python }}
           cache: "pip"
       - name: Install msys build tools (make, patch)
         # Same toolchain cibuildwheel's before-all expects; idempotent there.
@@ -533,13 +533,15 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: C:/ccache-win
+          # One key across the three python legs: compile objects are mostly
+          # python-version independent, so warm runs share nearly everything.
           key: ccache-windows-amd64-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
           restore-keys: ccache-windows-amd64-
       - name: Ensure ccache dir exists
         run: mkdir -p /c/ccache-win
       - uses: pypa/cibuildwheel@v3.4.1
         env:
-          CIBW_BUILD: cp313-*
+          CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
           CIBW_ARCHS: AMD64
       # Save right after compile, before tests/cancellation can lose it.
       - name: Save ccache
@@ -567,20 +569,17 @@ jobs:
       - name: Run tests
         run: |
           pip install pytest
-          pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*cp313*.whl
+          pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*${{ env.CIBW_PYTHON }}*.whl
           pip install numpy pydantic
           pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
-          name: windows-poc-cp313_win_amd64
+          name: windows-poc-${{ env.CIBW_PYTHON }}_win_amd64
           path: ./wheelhouse/*.whl
 
   test:
     name: Test wheel on ${{ matrix.os }} ${{ matrix.arch }}
-    # TEMPORARY (PR#48 windows PoC iteration): needs the disabled legs.
-    # REVERT BEFORE MERGE.
-    if: github.ref == 'refs/heads/__windows-poc-disabled__'  # TEMP PR#48: REVERT BEFORE MERGE
     needs: [wheels-linux, wheels-macos]
     runs-on: ${{ matrix.github-runner }}
     strategy:

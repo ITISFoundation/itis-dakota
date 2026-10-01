@@ -20,7 +20,7 @@ Requirements
 
 At the moment the wheel can be installed on **Linux** ([manylinux_2_28](https://github.com/pypa/manylinux) compatible distributions) only.
 
-A **Windows** (`win_amd64`, CPython 3.13) wheel is built in CI from the same source
+A **Windows** (`win_amd64`, CPython 3.12–3.14) wheel is built in CI from the same source
 using an MSYS2/MinGW-w64 (ucrt64) toolchain and passes the test suite there; it is a
 proof-of-concept artifact of the `wheels-windows` job, not published to PyPI. Known
 limitation: Dakota's binary restart files are not portable across platforms

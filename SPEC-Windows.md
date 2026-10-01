@@ -4,7 +4,7 @@
 
 Produce `itis_dakota` `win_amd64` wheel from same Dakota 6.24.0 source + patches, via
 cibuildwheel on `windows-*` GitHub runner with MSYS2/MinGW-w64 (ucrt64) toolchain.
-PoC scope: cp313 only, CI artifact only, ⊥ PyPI publish.
+Scope: win_amd64 × repo python set (3.12/3.13/3.14), CI artifact only, ⊥ PyPI publish.
 
 ## §C Constraints
 
@@ -18,7 +18,8 @@ PoC scope: cp313 only, CI artifact only, ⊥ PyPI publish.
   (dakota-packages 5c0356b), needs Intel Fortran, static-lib defaults.
 - C.tpls — system TPLs from MSYS2 pacman, direct analog of `yum install` (linux) /
   `brew install` (macos): boost, hdf5, gsl, lapack(+openblas), + msys `patch`/`make`.
-- C.scope — cp313 win_amd64 only. ⊥ win32, ⊥ windows-arm64, ⊥ PyPI/test-PyPI.
+- C.scope — win_amd64 × python 3.12/3.13/3.14 (same set as linux/macos legs). ⊥ win32,
+  ⊥ windows-arm64, ⊥ PyPI/test-PyPI.
 - C.abi — target python.org CPython (MSVC-built); `numpy`/`h5py` build+runtime deps come
   as prebuilt win wheels; mingw pyd links them via CMake FindPython.
 - C.queso — `HAVE_QUESO=ON` target (feature parity). If QUESO blocks mingw → PoC may ship
@@ -34,8 +35,8 @@ PoC scope: cp313 only, CI artifact only, ⊥ PyPI publish.
 
 - toml: `[tool.cibuildwheel.windows]` + `…windows.environment` → windows build config.
 - cmd: `scripts/repair_wheel_windows.py {dest_dir} {wheel}` → repaired wheel in dest_dir.
-- ci: job `wheels-windows` → artifact `windows-poc-cp313_win_amd64` (name kept off
-  the `wheels-*` glob so publish jobs ⊥ see it, PoC only).
+- ci: job `wheels-windows` → artifact `windows-poc-cp3XX_win_amd64` per python leg (name
+  kept off the `wheels-*` glob so publish jobs ⊥ see it, artifact-only scope).
 - cmd: `make get-dakota-src` unchanged on unix; runs under msys bash on windows.
 - env: CI sets `CIBW_BUILD=cp313-*`, `CIBW_ARCHS=AMD64`.
 
@@ -49,7 +50,8 @@ V4tx: ∀ windows PR → linux/macos cibuildwheel sections + repair scripts unch
 (additive-only edits; diff audit).
 V5vz: ∀ `src_patches_v624/*` applied identically ∀ platform; mingw-specific hunks behind
 `__MINGW32__`/CMake platform guards.
-V6bc: windows build matrix yields exactly `cp313-cp313-win_amd64`; ⊥ win32 wheels.
+V6bc: windows build matrix yields exactly `cp3XX-cp3XX-win_amd64` per configured python;
+  ⊥ win32 wheels.
 V7df: `release`, `test-pypi`, `pypi` jobs ⊥ consume windows artifacts.
 V8gm: every link edge INTO exported `dakota_src` is a raw `LINK_LIBRARIES`-property item fed
   `$<TARGET_LINKER_FILE:...>`; ∄ PUBLIC/INTERFACE edge from it to a target outside the
@@ -70,7 +72,8 @@ T5tv|x|buildwheels.yml: `wheels-windows` job (dakota-src cache, pacman, ccache c
 T6wx|x|CI rounds 10–31 mingw port, green at dev41: 21 `src_patches_v624` patches (configure, compile dialect, closed-world link fixes), windows-scoped pyproject flags (`-std=gnu17`, `_USE_MATH_DEFINES`), root CMakeLists closed-world edges (V8gm/V9hz forms), repair-script chain (ensurepip→delvewheel --no-mangle-all→exe closure staging) — pytest 16 passed/7 skipped on win runner|C.src,C.queso,V5vz,V8gm,V9hz
 T7za|x|README windows support status line (PoC artifact, LP64 restart caveat)|C.scope
 T8rb|x|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
-T9sw|x|TEMP PR scaffolding: buildwheels.yml gates wheels-linux/sbom-scan/dependency-review/wheels-macos/test behind `if: github.ref == 'refs/heads/__windows-poc-disabled__'`; REVERT BEFORE MERGE (restore dep-review's original `if: github.event_name == 'pull_request'`)|C.scope
+T9sw|x|TEMP PR scaffolding (buildwheels.yml gates for PR iteration) — REVERTED 2026-10-01 after first green windows build; linux/macos/sbom/dep-review/test jobs restored to upstream conditions (dep-review `if: github.event_name == 'pull_request'`)|C.scope
+T10am|.|Full-matrix verification run: windows cp312/cp313/cp314 × win_amd64 + unblocked linux(6)/macos(5)/sbom/dep-review/test(4) legs all green in one run|C.scope,V6bc,V7df
 
 ## §B Bugs
 
