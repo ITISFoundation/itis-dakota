@@ -22,7 +22,8 @@ PoC scope: cp313 only, CI artifact only, ⊥ PyPI publish.
 - C.abi — target python.org CPython (MSVC-built); `numpy`/`h5py` build+runtime deps come
   as prebuilt win wheels; mingw pyd links them via CMake FindPython.
 - C.queso — `HAVE_QUESO=ON` target (feature parity). If QUESO blocks mingw → PoC may ship
-  `HAVE_QUESO=OFF` w/ §B entry + README note. ? pending first CI configure.
+  `HAVE_QUESO=OFF` w/ §B entry + README note. RESOLVED (round-17): QUESO green under mingw,
+  `HAVE_QUESO=ON`; B10tm/B11mk were its last blockers; OFF fallback never exercised.
 - C.nortk — windows work ⊥ regress linux/macos legs: cibuildwheel sections, repair
   scripts, CMake linux/macos code paths unchanged (additive edits only).
 - C.vend — DLL vendoring = `delvewheel` (win analog of auditwheel/delocate) for
@@ -50,6 +51,13 @@ V5vz: ∀ `src_patches_v624/*` applied identically ∀ platform; mingw-specific 
 `__MINGW32__`/CMake platform guards.
 V6bc: windows build matrix yields exactly `cp313-cp313-win_amd64`; ⊥ win32 wheels.
 V7df: `release`, `test-pypi`, `pypi` jobs ⊥ consume windows artifacts.
+V8gm: every link edge INTO exported `dakota_src` is a raw `LINK_LIBRARIES`-property item fed
+  `$<TARGET_LINKER_FILE:...>`; ∄ PUBLIC/INTERFACE edge from it to a target outside the
+  DakotaTargets export set — CMake's `install(EXPORT)` closure check rejects even
+  `$<LINK_ONLY:>` and property target-names, on EVERY platform (B18ex).
+V9hz: a single-pass link line lists each cyclic STATIC archive family ≥2 passes, deps-last
+  (GNU ld pulls members left→right once; MSVC's iterate-to-exhaustive hid the cycle upstream
+  — B19ro). Shared-DLL edges exempt (order-insensitive).
 
 ## §T Tasks
 
@@ -59,7 +67,10 @@ T2jn|x|CMakeLists.txt: collect built `*.dll` TPLs + `libdakota_src.dll` into `.d
 T3lp|x|get-dakota-src windows-usable: msys bash path documented/wired in CI (curl+tar+patch via msys); Makefile unix behavior unchanged|C.src,V5vz
 T4qs|x|scripts/repair_wheel_windows.py: PATH-stage `.data/scripts` DLLs → `delvewheel repair` for pyd → stage exe DLL closure next to `dakota.exe` → RECORD rewrite → zip verify|V1kq,V2pn,I.cmd,C.vend
 T5tv|x|buildwheels.yml: `wheels-windows` job (dakota-src cache, pacman, ccache cache, cibuildwheel cp313/AMD64, wheel integrity, pytest, upload artifact; excluded from release/pypi needs)|V3rw,V6bc,V7df,I.ci
-T6wx|.|CI iteration: mingw-port patches into src_patches_v624 as dakota/QUESO configure/compile failures demand|C.src,C.queso,V5vz
+T6wx|.|CI rounds 10–25 mingw port: 22 `src_patches_v624` patches (configure, compile dialect,
+  closed-world link fixes) + windows-scoped pyproject flags (`-std=gnu17`,
+  `_USE_MATH_DEFINES`) + root CMakeLists closed-world edges (V8gm/V9hz forms). Frontier:
+  dakota_src.dll link @ [1781/1784]; round-25 carries B19ro rescan pass|C.src,C.queso,V5vz,V8gm,V9hz
 T7za|.|README: windows support status once CI green|C.scope
 T8rb|x|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
 T9sw|x|TEMP PR scaffolding: buildwheels.yml gates wheels-linux/sbom-scan/dependency-review/wheels-macos/test behind `if: github.ref == 'refs/heads/__windows-poc-disabled__'`; REVERT BEFORE MERGE (restore dep-review's original `if: github.event_name == 'pull_request'`)|C.scope
