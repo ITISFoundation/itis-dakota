@@ -497,7 +497,7 @@ jobs:
           cache: "pip"
       - name: Install msys build tools (make, patch)
         # Same toolchain cibuildwheel's before-all expects; idempotent there.
-        run: C:/msys64/usr/bin/bash.exe -lc "pacman -Sy --noconfirm; pacman -S --noconfirm --needed make patch"
+        run: C:/msys64/usr/bin/bash.exe -lc "pacman -Sy --noconfirm; pacman -S --noconfirm --needed --disable-download-timeout make patch"
       - name: Materialize libboost_regex-mt.a
         # pacman boost 1.92 ships no libboost_regex (Boost.Regex is
         # header-only upstream; only its 2 C-API shims ever compile), yet
@@ -509,7 +509,7 @@ jobs:
         # step wrappers misbehave (B2gh). Non-login `bash -c` + fully
         # qualified tool paths: the msys LOGIN shell proved unreliable under
         # nested runner invocation (cwd relocation AND silent exit-1).
-        run: C:/msys64/usr/bin/bash.exe -c "/usr/bin/pacman -Sy --noconfirm && /usr/bin/pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-boost && /usr/bin/bash $PWD/scripts/build_boost_regex.sh"
+        run: C:/msys64/usr/bin/bash.exe -c "/usr/bin/pacman -Sy --noconfirm && /usr/bin/pacman -S --noconfirm --needed --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-boost && /usr/bin/bash $PWD/scripts/build_boost_regex.sh"
       - name: Install uv
         # [tool.cibuildwheel] build-frontend = "build[uv]" — cibuildwheel needs
         # uv discoverable on PATH *before* before-all runs (macOS gets it from
