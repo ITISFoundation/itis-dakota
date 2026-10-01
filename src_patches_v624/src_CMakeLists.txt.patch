@@ -1,8 +1,6 @@
-diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 874f607b1..a1a42bc7e 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -326,6 +326,9 @@ if(DAKOTA_PYTHON_DIRECT_INTERFACE)
+@@ -326,6 +326,9 @@
      add_definitions("-DDAKOTA_PYTHON_NUMPY")
    endif()
  
@@ -12,7 +10,7 @@ index 874f607b1..a1a42bc7e 100644
  endif()
  
  
-@@ -1008,7 +1011,7 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_
+@@ -1008,7 +1011,7 @@
  endif()
  # When using Boost imported targets, we only link libraries using them,
  # then rely on transitive library linking from CMake
@@ -21,18 +19,18 @@ index 874f607b1..a1a42bc7e 100644
  # Dakota should always depend on util (consider removing option in DakotaOptions.cmamke
  target_link_libraries(dakota_src dakota_util)
  # Keep parser/IR as implementation-only link dependencies of libdakota_src.
-@@ -1133,7 +1136,9 @@ endif()
+@@ -1133,7 +1136,9 @@
  
  
  target_link_libraries(dakota ${DAKOTA_ALL_LIBS})
 -target_link_libraries(dakota dakota_parser_lib)
 +target_link_libraries(dakota dakota_parser_lib dakota_ir)
 +find_package(Threads REQUIRED)
-+target_link_libraries(dakota Threads::Threads ${CMAKE_DL_LIBS} util ${Python3_LIBRARIES})
++target_link_libraries(dakota Threads::Threads ${CMAKE_DL_LIBS} $<$<NOT:$<PLATFORM_ID:Windows>>:util> ${Python3_LIBRARIES})
  DakotaApplyMPISettings(dakota)
  target_link_libraries(dakota_restart_util ${DAKOTA_ALL_LIBS})
  target_link_libraries(dakota_restart_util dakota_parser_lib)
-@@ -1211,7 +1216,7 @@ set(Dakota_LIBRARIES ${DAKOTA_LIBS} ${DAKOTA_PKG_LIBS} ${DAKOTA_EXTPROJ_LIBS}
+@@ -1211,7 +1216,7 @@
  
  # Libraries that will be on the system
  # We add Boost libraries by path/name here for Makefile.export purposes
