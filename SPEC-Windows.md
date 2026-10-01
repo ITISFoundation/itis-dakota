@@ -62,6 +62,7 @@ T5tv|x|buildwheels.yml: `wheels-windows` job (dakota-src cache, pacman, ccache c
 T6wx|.|CI iteration: mingw-port patches into src_patches_v624 as dakota/QUESO configure/compile failures demand|C.src,C.queso,V5vz
 T7za|.|README: windows support status once CI green|C.scope
 T8rb|x|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
+T9sw|x|TEMP PR scaffolding: buildwheels.yml gates wheels-linux/sbom-scan/dependency-review/wheels-macos/test behind `if: github.ref == 'refs/heads/__windows-poc-disabled__'`; REVERT BEFORE MERGE (restore dep-review's original `if: github.event_name == 'pull_request'`)|C.scope
 
 ## §B Bugs
 
