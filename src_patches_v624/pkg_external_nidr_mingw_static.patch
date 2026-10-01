@@ -1,0 +1,18 @@
+--- a/packages/external/nidr/CMakeLists.txt
++++ b/packages/external/nidr/CMakeLists.txt
+@@ -186,7 +186,14 @@
+   endif() # DL_FOUND
+ endif(NIDR_DL_SOLVER)
+ 
+-add_library(nidr nidr-scanner.c nidr-parser.c avltree.c nidr.c)
++if(WIN32 AND MINGW)
++  # nidr-scanner references Dakota_Keyword_Top, defined by libdakota_src's
++  # NIDR_keywds.hpp; that backward reference is impossible for a DLL, so build
++  # nidr static and close it inside libdakota_src.
++  add_library(nidr STATIC nidr-scanner.c nidr-parser.c avltree.c nidr.c)
++else()
++  add_library(nidr nidr-scanner.c nidr-parser.c avltree.c nidr.c)
++endif()
+ 
+ # Install headers.
+ install(

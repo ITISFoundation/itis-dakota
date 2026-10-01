@@ -1,0 +1,37 @@
+--- a/packages/external/LHS/CMakeLists.txt
++++ b/packages/external/LHS/CMakeLists.txt
+@@ -131,6 +131,13 @@
+ include_directories(${CMAKE_CURRENT_BINARY_DIR}/mods)
+ include_directories(${CMAKE_CURRENT_BINARY_DIR}/mods/mod)
+ 
++if(WIN32 AND MINGW)
++  # rnumlhs1_/rnumlhs2_ are supplied at runtime on ELF by Dakota/pecos
++  # (packages/pecos/src/BoostRNG_Monostate.hpp); a closed-world liblhs DLL
++  # cannot defer them, so compile LHS's own default-stream versions in,
++  # mirroring the standalone driver (lhsdrv.f90).
++  list(APPEND LHS_UTIL_SRC RnumlhsDflt.f90)
++endif()
+ add_library(lhs ${LHS_UTIL_SRC} ${LHS_CORE_SRC})
+ 
+ target_link_libraries(lhs lhs_mod lhs_mods)
+--- /dev/null
++++ b/packages/external/LHS/RnumlhsDflt.f90
+@@ -0,0 +1,18 @@
++c
++      DOUBLE PRECISION FUNCTION RNUMLHS1()
++cc    Mingw-only shim (see CMakeLists.txt): on ELF builds Dakota exports
++cc    rnumlhs1 at runtime via packages/pecos/src/BoostRNG_Monostate.hpp.
++cc    A closed-world liblhs DLL cannot take that reference, so fall back to
++cc    the built-in default stream, exactly as the standalone driver does
++cc    (see lhsdrv.f90 RNUMLHS1).                              sld-style orig
++      DOUBLE PRECISION DEFAULTRNUM1
++      RNUMLHS1 = DEFAULTRNUM1()
++      RETURN
++      END
++c
++      DOUBLE PRECISION FUNCTION RNUMLHS2()
++cc    See RNUMLHS1 above; uses DefaultRnum2.f90.
++      DOUBLE PRECISION DEFAULTRNUM2
++      RNUMLHS2 = DEFAULTRNUM2()
++      RETURN
++      END

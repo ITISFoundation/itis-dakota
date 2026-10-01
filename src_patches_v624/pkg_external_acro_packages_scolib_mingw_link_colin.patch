@@ -1,0 +1,15 @@
+--- a/packages/external/acro/packages/scolib/src/CMakeLists.txt
++++ b/packages/external/acro/packages/scolib/src/CMakeLists.txt
+@@ -16,9 +16,12 @@
+   libs/TGPO.cpp
+   libs/StateMachineLS.cpp
+ )
++# colin: scolib solvers call into colin at runtime; on ELF that was resolved
++# at load time, but Windows DLL links are closed-world and need the edge here.
+ target_link_libraries(scolib
+   utilib
+   pebbl
++  colin
+ )
+ 
+ if(HAVE_AMPL)

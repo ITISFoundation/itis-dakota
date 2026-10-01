@@ -47,6 +47,24 @@ target_compile_definitions(dakota_src PRIVATE
   __TIME__="00:00:00"
 )
 
+# mingw shared-library links are closed-world; these targets referenced
+# libraries they never linked, relying on ELF runtime resolution.  Spell out
+# the edges (harmless no-ops on Linux/macOS where DT_NEEDED already covered it
+# transitively): queso calls GSL; hopspack and surfpack_fortran call
+# BLAS/LAPACK routines (dgemm_, dswap_, xerbla_, ...).
+if(TARGET queso AND TARGET GSL::gsl)
+  target_link_libraries(queso PRIVATE GSL::gsl)
+  if(TARGET GSL::gslcblas)
+    target_link_libraries(queso PRIVATE GSL::gslcblas)
+  endif()
+endif()
+if(TARGET hopspack AND DEFINED BLAS_LIBRARIES)
+  target_link_libraries(hopspack PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+endif()
+if(TARGET surfpack_fortran AND DEFINED BLAS_LIBRARIES)
+  target_link_libraries(surfpack_fortran PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+endif()
+
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
 
 install(TARGETS dakota

@@ -1,0 +1,18 @@
+--- a/packages/external/dream/CMakeLists.txt
++++ b/packages/external/dream/CMakeLists.txt
+@@ -6,7 +6,14 @@
+ set(ExportTarget ${CMAKE_PROJECT_NAME}-targets CACHE STRING 
+   "Name for the export target for ${CMAKE_PROJECT_NAME}")
+ 
+-add_library(dream dream.cpp pdflib.cpp rnglib.cpp)
++if(WIN32 AND MINGW)
++  # Dakota provides the dream:: callbacks (NonDDREAMBayesCalibration.cpp) at
++  # runtime on ELF; a libdream DLL cannot reference its own host, so build it
++  # static and close it inside libdakota_src.
++  add_library(dream STATIC dream.cpp pdflib.cpp rnglib.cpp)
++else()
++  add_library(dream dream.cpp pdflib.cpp rnglib.cpp)
++endif()
+ 
+ option(DREAM_ENABLE_TESTING "Enable DREAM test drivers" OFF)
+ if (DREAM_ENABLE_TESTING)
