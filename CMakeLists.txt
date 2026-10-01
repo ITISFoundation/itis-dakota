@@ -19,12 +19,18 @@ if(APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
 else()
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
-    if(NOT WIN32)
+    if(WIN32)
+        # binutils only auto-exports every symbol when the link carries no
+        # __declspec(dllexport) anywhere; vendored headers decorate for _WIN32
+        # (ampl funcadd.h, approxnn ANN.h), which silently reduces each DLL's
+        # import library to a handful of decorated symbols and starves the
+        # closed-world links of every sibling DLL. Force full export.
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--export-all-symbols")
+    else()
         # mingw: --gc-sections at DLL link time strips auto-exported sections
-        # whose only callers live in other DLLs (observed: utilib/colin import
-        # libs missing symbols on msys2 binutils), breaking closed-world DLL
-        # links. Exe links keep gc-sections; only the Windows wheel loses the
-        # size optimization.
+        # whose only callers live in other DLLs (observed on msys2 binutils),
+        # breaking closed-world DLL links. Exe links keep gc-sections; only
+        # the Windows wheel loses the size optimization.
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
     endif()
 endif()
@@ -56,20 +62,23 @@ target_compile_definitions(dakota_src PRIVATE
 
 # mingw shared-library links are closed-world; these targets referenced
 # libraries they never linked, relying on ELF runtime resolution.  Spell out
-# the edges (harmless no-ops on Linux/macOS where DT_NEEDED already covered it
-# transitively): queso calls GSL; hopspack and surfpack_fortran call
-# BLAS/LAPACK routines (dgemm_, dswap_, xerbla_, ...).
-if(TARGET queso AND TARGET GSL::gsl)
-  target_link_libraries(queso PRIVATE GSL::gsl)
-  if(TARGET GSL::gslcblas)
-    target_link_libraries(queso PRIVATE GSL::gslcblas)
-  endif()
+# the edges (harmless no-ops on Linux/macOS): queso calls GSL; hopspack and
+# surfpack_fortran call BLAS/LAPACK routines (dgemm_, dswap_, xerbla_, ...).
+# dakota only caches these finds inside subdirectory scopes (TPL_* vars are
+# trilinos-local; imported targets are not parent-visible), so re-run the
+# find-modules here: they reuse dakota's cache hits and expose the documented
+# *_LIBRARIES cache variables at root scope.
+find_package(GSL QUIET)
+find_package(BLAS QUIET)
+find_package(LAPACK QUIET)
+if(TARGET queso AND GSL_LIBRARIES)
+  target_link_libraries(queso PRIVATE ${GSL_LIBRARIES})
 endif()
-if(TARGET hopspack AND DEFINED BLAS_LIBRARIES)
-  target_link_libraries(hopspack PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+if(TARGET hopspack AND BLAS_LIBRARIES)
+  target_link_libraries(hopspack PRIVATE ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 endif()
-if(TARGET surfpack_fortran AND DEFINED BLAS_LIBRARIES)
-  target_link_libraries(surfpack_fortran PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+if(TARGET surfpack_fortran AND BLAS_LIBRARIES)
+  target_link_libraries(surfpack_fortran PRIVATE ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 endif()
 
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
