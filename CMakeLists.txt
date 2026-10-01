@@ -92,6 +92,11 @@ endif()
 if(TARGET surfpack AND TARGET conmin)
   target_link_libraries(surfpack conmin)
 endif()
+# NKM_Optimize.cpp also calls the NCSUOpt direct solver (ncsuopt_direct_);
+# same ELF-load-time-resolution class as conmin. NCSUOpt is a leaf.
+if(TARGET surfpack AND TARGET ncsuopt)
+  target_link_libraries(surfpack ncsuopt)
+endif()
 
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
 
