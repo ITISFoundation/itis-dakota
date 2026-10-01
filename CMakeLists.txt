@@ -82,6 +82,16 @@ endif()
 if(TARGET surfpack_fortran AND BLAS_LIBRARIES)
   target_link_libraries(surfpack_fortran ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 endif()
+# surfpack calls into pecos (CrossValidationIterator, CompressedSensingTool;
+# the edge was commented out upstream at src/CMakeLists.txt:82 and ELF
+# resolved it at runtime). pecos never references surfpack, so this stays a
+# forward edge. Plain signature to match dakota's uses.
+if(TARGET surfpack AND TARGET pecos_src)
+  target_link_libraries(surfpack pecos_src)
+endif()
+if(TARGET surfpack AND TARGET conmin)
+  target_link_libraries(surfpack conmin)
+endif()
 
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
 
