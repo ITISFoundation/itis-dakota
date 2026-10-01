@@ -1,8 +1,19 @@
-diff --git a/src/util/parse_cmake_cache.cpp b/src/util/parse_cmake_cache.cpp
-index 234b371..3796b37 100644
 --- a/src/util/parse_cmake_cache.cpp
 +++ b/src/util/parse_cmake_cache.cpp
-@@ -76,6 +76,12 @@ int main(int argc, char const *argv[]) {
+@@ -59,6 +59,12 @@
+       // Remove all blank lines and comments
+       if (!(starts_with(line, "//") || starts_with(line, "#") ||
+             line.length() == 0)) {
++        // Escape backslashes first: Windows cache values carry paths like
++        // C:\msys64\..., and an unescaped \U is an invalid universal
++        // character name for GCC (MSVC never checked it).
++        auto bs_positions = find_all_occurances(line, '\\');
++        std::for_each(bs_positions.rbegin(), bs_positions.rend(),
++                      [&](size_t &p) { line.insert(p, 1, '\\'); });
+         // Escape any strings in the file
+         auto positions = find_all_occurances(line, '"');
+         std::for_each(positions.rbegin(), positions.rend(),
+@@ -76,6 +82,12 @@
            continue;
          }
  
