@@ -123,6 +123,19 @@ if(TARGET dakota_src AND (WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS))
                    "$<TARGET_LINKER_FILE:${_dk_tpl}>")
     endif()
   endforeach()
+  # The JEGA family is STATIC under mingw (B-static family), and its
+  # archives reference each other (moga/soga -> jega's MetricTracker*,
+  # jega/moga/soga -> eddy::utilities RNG, jega_fe <-> jega). GNU ld
+  # takes a single left-to-right pass per archive, so the alphabetical
+  # order above starves late requesters. Second pass over the family
+  # re-scans the archives once more, resolving every cross edge. Shared
+  # DLL links are order-insensitive, so only the static family repeats.
+  foreach(_dk_rescan jega jega_fe moga soga utilities eutils ethreads)
+    if(TARGET ${_dk_rescan})
+      set_property(TARGET dakota_src APPEND PROPERTY LINK_LIBRARIES
+                   "$<TARGET_LINKER_FILE:${_dk_rescan}>")
+    endif()
+  endforeach()
   if(GSL_LIBRARIES)
     set_property(TARGET dakota_src APPEND PROPERTY LINK_LIBRARIES ${GSL_LIBRARIES})
   endif()
