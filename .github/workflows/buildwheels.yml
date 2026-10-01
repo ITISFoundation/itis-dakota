@@ -498,6 +498,18 @@ jobs:
       - name: Install msys build tools (make, patch)
         # Same toolchain cibuildwheel's before-all expects; idempotent there.
         run: C:/msys64/usr/bin/bash.exe -lc "pacman -Sy --noconfirm; pacman -S --noconfirm --needed make patch"
+      - name: Materialize libboost_regex-mt.a
+        # pacman boost 1.92 ships no libboost_regex (Boost.Regex is
+        # header-only upstream; only its 2 C-API shims ever compile), yet
+        # module-mode FindBoost still demands a real file for the `regex`
+        # component. See scripts/build_boost_regex.sh. Ensured here rather
+        # than in before-all because cibuildwheel gives windows before-all
+        # no repo-root cwd. Must run BEFORE the GITHUB_PATH prepend: once
+        # msys usr/bin leads PATH, GH's `shell: bash` resolves to msys bash
+        # and nested msys step wrappers misbehave.
+        run: |
+          C:/msys64/usr/bin/bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-boost"
+          C:/msys64/usr/bin/bash.exe -lc "bash scripts/build_boost_regex.sh"
       - name: Install uv
         # [tool.cibuildwheel] build-frontend = "build[uv]" — cibuildwheel needs
         # uv discoverable on PATH *before* before-all runs (macOS gets it from
@@ -525,17 +537,6 @@ jobs:
           restore-keys: ccache-windows-amd64-
       - name: Ensure ccache dir exists
         run: mkdir -p /c/ccache-win
-      - name: Materialize libboost_regex-mt.a
-        # pacman boost 1.92 ships no libboost_regex (Boost.Regex is
-        # header-only upstream; only its 2 C-API shims ever compile), yet
-        # module-mode FindBoost still demands a real file for the `regex`
-        # component. See scripts/build_boost_regex.sh. Ensured here rather
-        # than in before-all because cibuildwheel gives windows before-all
-        # no repo-root cwd.
-        shell: bash
-        run: |
-          C:/msys64/usr/bin/bash.exe -lc "pacman -Sy --noconfirm; pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-boost"
-          C:/msys64/usr/bin/bash.exe -lc "bash $PWD/scripts/build_boost_regex.sh"
       - uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: cp313-*
