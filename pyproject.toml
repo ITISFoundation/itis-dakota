@@ -213,6 +213,13 @@ Boost_NO_BOOST_CMAKE = "ON"
 # names. Legacy FindBoost + BOOST_ROOT/BOOST_LIBRARYDIR env finds them.
 [tool.py-build-cmake.windows.cmake.options]
 Boost_NO_BOOST_CMAKE = "ON"
+# UCRT <math.h> hides M_PI etc. under -std=c++17 (__STRICT_ANSI__);
+# _USE_MATH_DEFINES opts back in. Needed by e.g. dakota_parser's
+# computed_fields.hpp (gumbel_moments). Carries the global -Wno-psabi
+# because a platform section's value replaces the global one for the
+# same key.
+CMAKE_CXX_FLAGS = "-Wno-psabi -D_USE_MATH_DEFINES"
+CMAKE_C_FLAGS = "-D_USE_MATH_DEFINES"
 
 [tool.pytest.ini_options]
 addopts = "--ignore=dakota/ --ignore=tmp/"
