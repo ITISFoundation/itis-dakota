@@ -67,11 +67,8 @@ T2jn|x|CMakeLists.txt: collect built `*.dll` TPLs + `libdakota_src.dll` into `.d
 T3lp|x|get-dakota-src windows-usable: msys bash path documented/wired in CI (curl+tar+patch via msys); Makefile unix behavior unchanged|C.src,V5vz
 T4qs|x|scripts/repair_wheel_windows.py: PATH-stage `.data/scripts` DLLs → `delvewheel repair` for pyd → stage exe DLL closure next to `dakota.exe` → RECORD rewrite → zip verify|V1kq,V2pn,I.cmd,C.vend
 T5tv|x|buildwheels.yml: `wheels-windows` job (dakota-src cache, pacman, ccache cache, cibuildwheel cp313/AMD64, wheel integrity, pytest, upload artifact; excluded from release/pypi needs)|V3rw,V6bc,V7df,I.ci
-T6wx|.|CI rounds 10–25 mingw port: 22 `src_patches_v624` patches (configure, compile dialect,
-  closed-world link fixes) + windows-scoped pyproject flags (`-std=gnu17`,
-  `_USE_MATH_DEFINES`) + root CMakeLists closed-world edges (V8gm/V9hz forms). Frontier:
-  dakota_src.dll link @ [1781/1784]; round-25 carries B19ro rescan pass|C.src,C.queso,V5vz,V8gm,V9hz
-T7za|.|README: windows support status once CI green|C.scope
+T6wx|x|CI rounds 10–31 mingw port, green at dev41: 21 `src_patches_v624` patches (configure, compile dialect, closed-world link fixes), windows-scoped pyproject flags (`-std=gnu17`, `_USE_MATH_DEFINES`), root CMakeLists closed-world edges (V8gm/V9hz forms), repair-script chain (ensurepip→delvewheel --no-mangle-all→exe closure staging) — pytest 16 passed/7 skipped on win runner|C.src,C.queso,V5vz,V8gm,V9hz
+T7za|x|README windows support status line (PoC artifact, LP64 restart caveat)|C.scope
 T8rb|x|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
 T9sw|x|TEMP PR scaffolding: buildwheels.yml gates wheels-linux/sbom-scan/dependency-review/wheels-macos/test behind `if: github.ref == 'refs/heads/__windows-poc-disabled__'`; REVERT BEFORE MERGE (restore dep-review's original `if: github.event_name == 'pull_request'`)|C.scope
 
