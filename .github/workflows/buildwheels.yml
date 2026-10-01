@@ -498,6 +498,12 @@ jobs:
       - name: Install msys build tools (make, patch)
         # Same toolchain cibuildwheel's before-all expects; idempotent there.
         run: C:/msys64/usr/bin/bash.exe -lc "pacman -Sy --noconfirm; pacman -S --noconfirm --needed make patch"
+      - name: Install uv
+        # [tool.cibuildwheel] build-frontend = "build[uv]" — cibuildwheel needs
+        # uv discoverable on PATH *before* before-all runs (macOS gets it from
+        # brew-deps, Linux from the image; on Windows the host python's Scripts
+        # dir is on PATH).
+        run: python -m pip install --quiet --upgrade uv && uv --version
       - name: Prefer msys tools on PATH
         # make/curl/tar/sed for get-dakota-src (and patch, installed above).
         run: echo "C:/msys64/usr/bin" >> "$GITHUB_PATH"
