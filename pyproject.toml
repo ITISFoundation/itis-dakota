@@ -150,7 +150,7 @@ CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel.windows]
 skip = "pp* *-win32"
-repair-wheel-command = "python -m pip install --quiet delvewheel pefile; python ./scripts/repair_wheel_windows.py {dest_dir} {wheel}"
+repair-wheel-command = "python -m ensurepip && python -m pip install --quiet delvewheel pefile && python ./scripts/repair_wheel_windows.py {dest_dir} {wheel}"
 before-all = [
     # MSYS2 ships preinstalled on GitHub windows runners at C:\msys64.
     # `patch`/`make` are needed by `make get-dakota-src`; perl lives in
