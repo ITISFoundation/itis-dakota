@@ -6,8 +6,9 @@ Two duties, mirroring what auditwheel does on Linux:
 1. ``delvewheel repair`` vendors every DLL that ``environment*.pyd`` needs
    (mingw-built Boost/HDF5/GSL/OpenBLAS plus libgcc/libstdc++/libgfortran/
    libwinpthread from MSYS2 ucrt64, plus the mingw-built TPL DLLs and
-   libdakota_src.dll staged in ``*.data/scripts``) into ``itis_dakota.libs``
-   and rewrites the pyd's import table to load them from there.
+   libdakota_src.dll staged in ``*.data/scripts``) into ``itis_dakota.libs``;
+   a load-order table preloads them so name-based imports resolve there
+   (mangling is disabled — see repair_with_delvewheel for why).
 
 2. delvewheel only understands extension modules, so ``dakota.exe`` is handled
    here: Windows has no rpath and a program's own directory is the first DLL
@@ -62,8 +63,24 @@ def is_system_dll(name: str) -> bool:
 def repair_with_delvewheel(wheel: Path, dest_dir: Path, extra_path: list[str]) -> Path:
     env = dict(os.environ)
     env["PATH"] = os.pathsep.join(extra_path + [env.get("PATH", "")])
+    # --no-mangle-all: delvewheel's documented answer to the mingw padding
+    # error — a mingw-built libdakota_src.dll imports ~40 vendored DLLs and
+    # its .rdata string space is tight (GNU ld packs it, plus a COFF symtab
+    # overlay), so rewritten mangled names don't fit in place. Without
+    # mangling nothing rewrites any import table; the load-order table still
+    # preloads every itis_dakota.libs DLL by full path, and name-keyed
+    # resolution then hits the already-loaded module table.
     subprocess.run(
-        [sys.executable, "-m", "delvewheel", "repair", "-w", str(dest_dir), str(wheel)],
+        [
+            sys.executable,
+            "-m",
+            "delvewheel",
+            "repair",
+            "--no-mangle-all",
+            "-w",
+            str(dest_dir),
+            str(wheel),
+        ],
         check=True,
         env=env,
     )
