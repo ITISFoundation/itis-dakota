@@ -192,12 +192,14 @@ install(TARGETS dakota
         DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
 install(TARGETS dakota_src
-        LIBRARY
+        LIBRARY RUNTIME
         COMPONENT dakota_for_python
         LIBRARY DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY}
-        # On Windows the SHARED runtime artifact is a DLL, installed under
-        # the RUNTIME kind (LIBRARY applies only on unix). No RUNTIME
-        # artifact exists on Linux/macOS, so this is a no-op there.
+        # The artifact-kind list above gates what installs: on Windows a
+        # SHARED target's DLL is the RUNTIME artifact (LIBRARY is unix-only
+        # and the import lib is ARCHIVE, which we deliberately omit). Under
+        # unix a SHARED lib has no RUNTIME artifact, so listing both kinds
+        # changes nothing there.
         RUNTIME DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
 # Glob+install whatever TPL .so/.dylib/.dll got built, for auditwheel/delocate/

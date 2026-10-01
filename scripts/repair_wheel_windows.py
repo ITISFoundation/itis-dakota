@@ -89,10 +89,23 @@ def stage_exe_dlls(wheel_path: Path) -> None:
         scripts_dir = exe.parent
 
         # Candidate DLL pool: everything delvewheel vendored + everything
-        # already staged in the scripts dir.
+        # already staged in the scripts dir. Vendored copies are mangled
+        # (name-8hex.dll), so also index them under the pre-mangle name the
+        # exe actually imports; originals win over mangled copies.
         pool: dict[str, Path] = {}
-        for dll in list(td_path.rglob("*.dll")):
-            pool.setdefault(dll.name.lower(), dll)
+
+        def _pool_add(dll: Path) -> None:
+            key = dll.name.lower()
+            base = re.sub(r"-[0-9a-f]{8,16}$", "", dll.stem.lower())
+            pool.setdefault(key, dll)
+            if base != dll.stem.lower():
+                pool.setdefault(base + ".dll", dll)
+
+        all_dlls = list(td_path.rglob("*.dll"))
+        for dll in sorted(d for d in all_dlls if "-" not in d.stem.lower()):
+            _pool_add(dll)
+        for dll in sorted(all_dlls):
+            _pool_add(dll)
 
         staged = 0
         work = list(dll_imports(exe))
@@ -107,7 +120,9 @@ def stage_exe_dlls(wheel_path: Path) -> None:
             if src is None:
                 missing.add(name)
                 continue
-            target = scripts_dir / src.name
+            # Stage under the IMPORT name (src may carry a delvewheel-mangled
+            # file name the loader will never look for next to the exe).
+            target = scripts_dir / name
             if not target.exists():
                 shutil.copyfile(src, target)
                 staged += 1
