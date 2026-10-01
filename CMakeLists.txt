@@ -97,6 +97,67 @@ endif()
 if(TARGET surfpack AND TARGET ncsuopt)
   target_link_libraries(surfpack ncsuopt)
 endif()
+# mingw: DLL links are closed-world. On ELF, dakota_src.so deliberately
+# leaves its TPL symbols undefined and lets the executables/extension
+# module resolve them at load time (the dakota exe links the full stack).
+# PE requires every DLL to close, so mirror the exe's library set onto
+# dakota_src; TARGET-guarded names auto-skip whatever a config doesn't
+# build. Two constraints shape the mechanism: dakota_src is plain-
+# signature and install/export()'d, so any PUBLIC target dep not in the
+# DakotaTargets export set breaks generation (even behind
+# $<LINK_ONLY:>), and raw target names appended to the LINK_LIBRARIES
+# property are still validated too. The form that passes is the raw
+# property fed $<TARGET_LINKER_FILE:...> ITEMS: file paths, not target
+# names, so neither the interface nor the export target graph ever sees
+# them. Scoped to Windows (plus an option for the Linux closed-world
+# emulation rig) so shipping Linux/macOS artifacts stay bit-identical.
+option(DAKOTA_FORCE_CLOSED_WORLD_LINKS
+       "Mirror mingw closed-world dakota_src links on ELF (verification)" OFF)
+if(TARGET dakota_src AND (WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS))
+  foreach(_dk_tpl approxnn conmin cport ddace dfftpack dream eutils ethreads
+                  fsudace hopspack jega jega_fe lhs lhs_mod lhs_mods moga
+                  ncsuopt nidr nomad optpp pecos_src pecos_util psuade queso
+                  soga sparsegrid surfpack surfpack_fortran utilib utilities)
+    if(TARGET ${_dk_tpl})
+      set_property(TARGET dakota_src APPEND PROPERTY LINK_LIBRARIES
+                   "$<TARGET_LINKER_FILE:${_dk_tpl}>")
+    endif()
+  endforeach()
+  if(GSL_LIBRARIES)
+    set_property(TARGET dakota_src APPEND PROPERTY LINK_LIBRARIES ${GSL_LIBRARIES})
+  endif()
+  # dakota finds HDF5 in its own scope; re-run (cache-warm) so the
+  # component variables/targets exist here, preferring imported targets.
+  find_package(HDF5 QUIET COMPONENTS "C;HL;CXX")
+  foreach(_h5 hdf5::hdf5 hdf5::hdf5_cpp hdf5::hdf5_hl hdf5::hdf5_hl_cpp)
+    if(TARGET ${_h5})
+      set_property(TARGET dakota_src APPEND PROPERTY LINK_LIBRARIES
+                   "$<TARGET_LINKER_FILE:${_h5}>")
+    endif()
+  endforeach()
+  if(NOT TARGET hdf5::hdf5 AND HDF5_CXX_LIBRARIES)
+    set_property(TARGET dakota_src APPEND PROPERTY LINK_LIBRARIES
+                 ${HDF5_CXX_LIBRARIES} ${HDF5_C_LIBRARIES})
+  endif()
+  # dakota_src embeds the Python interpreter; on ELF the hosting
+  # executable supplies the API at runtime, mingw wants the python3xx
+  # import lib in every DLL that calls it. Re-find at root scope so the
+  # imported target exists here (dakota found it inside its own scope);
+  # TARGET_LINKER_FILE resolves to python3xx.lib on mingw.
+  if(NOT TARGET Python3::Python)
+    find_package(Python3 QUIET COMPONENTS Interpreter Development.Embed)
+  endif()
+  if(TARGET Python3::Python)
+    set_property(TARGET dakota_src APPEND PROPERTY LINK_LIBRARIES
+                 "$<TARGET_LINKER_FILE:Python3::Python>")
+  endif()
+endif()
+# dakota.exe is closed-world under mingw too; its link omits ethreads
+# on ELF (nothing demanded it), so carry the same file-form edge.
+if(WIN32 AND TARGET dakota AND TARGET ethreads)
+  set_property(TARGET dakota APPEND PROPERTY LINK_LIBRARIES
+               "$<TARGET_LINKER_FILE:ethreads>")
+endif()
 
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
 
