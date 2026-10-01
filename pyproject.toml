@@ -219,7 +219,12 @@ Boost_NO_BOOST_CMAKE = "ON"
 # because a platform section's value replaces the global one for the
 # same key.
 CMAKE_CXX_FLAGS = "-Wno-psabi -D_USE_MATH_DEFINES"
-CMAKE_C_FLAGS = "-D_USE_MATH_DEFINES"
+# -std=gnu17: mingw gcc 16 defaults C to C23, where foo() means foo(void).
+# Vendored old C (DDACE Bose/*.c: imatrix()/ivector() K&R declarations)
+# then fails "too many arguments". gnu17 matches the pre-C23 semantics the
+# linux CI's older gcc applies by default. No C_STANDARD properties exist
+# in dakota, so this flag is not overridden.
+CMAKE_C_FLAGS = "-D_USE_MATH_DEFINES -std=gnu17"
 
 [tool.pytest.ini_options]
 addopts = "--ignore=dakota/ --ignore=tmp/"
