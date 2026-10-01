@@ -71,14 +71,16 @@ target_compile_definitions(dakota_src PRIVATE
 find_package(GSL QUIET)
 find_package(BLAS QUIET)
 find_package(LAPACK QUIET)
+# Use the plain signature: queso/hopspack/surfpack_fortran already use it in
+# dakota's tree and CMake forbids mixing signatures per target.
 if(TARGET queso AND GSL_LIBRARIES)
-  target_link_libraries(queso PRIVATE ${GSL_LIBRARIES})
+  target_link_libraries(queso ${GSL_LIBRARIES})
 endif()
 if(TARGET hopspack AND BLAS_LIBRARIES)
-  target_link_libraries(hopspack PRIVATE ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
+  target_link_libraries(hopspack ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 endif()
 if(TARGET surfpack_fortran AND BLAS_LIBRARIES)
-  target_link_libraries(surfpack_fortran PRIVATE ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
+  target_link_libraries(surfpack_fortran ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 endif()
 
 add_custom_target(dakota_for_python ALL DEPENDS environment dakota_src dakota)
