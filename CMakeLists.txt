@@ -19,7 +19,14 @@ if(APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
 else()
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
+    if(NOT WIN32)
+        # mingw: --gc-sections at DLL link time strips auto-exported sections
+        # whose only callers live in other DLLs (observed: utilib/colin import
+        # libs missing symbols on msys2 binutils), breaking closed-world DLL
+        # links. Exe links keep gc-sections; only the Windows wheel loses the
+        # size optimization.
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
+    endif()
 endif()
 
 set(DAKOTA_SCHEMA_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dakota/src/dakota.json CACHE STRING "Dakota Schema file")

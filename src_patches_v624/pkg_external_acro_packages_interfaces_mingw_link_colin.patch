@@ -1,0 +1,13 @@
+--- a/packages/external/acro/packages/interfaces/src/CMakeLists.txt
++++ b/packages/external/acro/packages/interfaces/src/CMakeLists.txt
+@@ -26,6 +26,10 @@
+ 
+ add_library(interfaces ${interfaces_srcs})
+ 
++# interfaces objects (Hooke.cpp, ...) call into colin and utilib; on ELF that
++# was load-time resolution, Windows DLL links need the edges.
++target_link_libraries(interfaces colin utilib)
++
+ if(HAVE_3PO)
+   target_link_libraries(interfaces 3po) 
+ endif()
