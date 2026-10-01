@@ -120,15 +120,40 @@ DAKOTA_SRC_TARBALL_URL := https://github.com/snl-dakota/dakota/releases/download
 # segfault in dirheader_() whenever a Kriging/EGO surrogate is built.
 # On Windows (wheels-windows CI job) run this from MSYS2 bash after installing
 # `make` + `patch` via pacman; curl/tar/sed ship with msys.
+
+# All 20 symlinks present in the v6.24.0 tarball, excluded on EVERY platform
+# (identical extraction everywhere, SPEC-Windows V5vz). Windows runners
+# cannot extract symlinks (no privilege without developer mode), and none of
+# these are build inputs: Tribits CI/doc/example aliases, one examples driver
+# alias, and EIGEN3Config.cmake — that last one was already dropped because on
+# macOS's case-insensitive filesystem it collides with the real Eigen3Config.cmake
+# and can leave a dangling self-referential symlink, breaking find_package(Eigen3).
+DAKOTA_SYMLINK_EXCLUDES := \
+  --exclude='*/EIGEN3Config.cmake' \
+  --exclude='*/dakota-examples/official/drivers/Python/linked_di/textbook/dakota_textbook_python.base' \
+  --exclude='*/external/trilinos/Copyright.txt' \
+  --exclude='*/external/trilinos/INSTALL' \
+  --exclude='*/external/trilinos/checkin-test.py' \
+  --exclude='*/external/trilinos/clone_extra_repos.py' \
+  --exclude='*/external/trilinos/cmake/ProjectCiFileChangeLogic.py' \
+  --exclude='*/cmake/tribits/Copyright.txt' \
+  --exclude='*/cmake/tribits/snapshot_tribits.py' \
+  --exclude='*/cmake/tribits/python_utils/gitdist' \
+  --exclude='*/tribits/doc/guides/maintainers_guide/TribitsCoreDetailedReference.rst' \
+  --exclude='*/tribits/doc/guides/users_guide/TribitsCoreDetailedReference.rst' \
+  --exclude='*/RawAndTribitsHelloWorld/hello_world/hello_world_lib.cpp' \
+  --exclude='*/RawAndTribitsHelloWorld/hello_world/hello_world_lib.hpp' \
+  --exclude='*/RawAndTribitsHelloWorld/hello_world/hello_world_main.cpp' \
+  --exclude='*/RawAndTribitsHelloWorld/hello_world/hello_world_unit_tests.cpp' \
+  --exclude='*/TribitsHelloWorld/hello_world/hello_world_lib.cpp' \
+  --exclude='*/TribitsHelloWorld/hello_world/hello_world_lib.hpp' \
+  --exclude='*/TribitsHelloWorld/hello_world/hello_world_main.cpp' \
+  --exclude='*/TribitsHelloWorld/hello_world/hello_world_unit_tests.cpp'
+
 get-dakota-src:
 	rm -rf dakota
 	mkdir dakota
-	# --exclude drops packages/external/eigen3's EIGEN3Config.cmake, a symlink
-	# alias for Eigen3Config.cmake: harmless on case-sensitive filesystems, but
-	# on macOS's case-insensitive one it collides with the real file and can
-	# leave a dangling self-referential symlink in its place, breaking Dakota's
-	# find_package(Eigen3) fallback.
-	curl -sSL "$(DAKOTA_SRC_TARBALL_URL)" | tar xz --strip-components=1 --exclude='*/EIGEN3Config.cmake' -C dakota
+	curl -sSL "$(DAKOTA_SRC_TARBALL_URL)" | tar xz --strip-components=1 $(DAKOTA_SYMLINK_EXCLUDES) -C dakota
 	cd dakota && \
 		for p in ../src_patches_v624/*.patch; do \
 			patch -p1 --no-backup-if-mismatch < "$$p"; \

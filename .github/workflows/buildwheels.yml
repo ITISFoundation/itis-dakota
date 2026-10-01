@@ -498,15 +498,19 @@ jobs:
       - name: Install msys build tools (make, patch)
         # Same toolchain cibuildwheel's before-all expects; idempotent there.
         run: C:/msys64/usr/bin/bash.exe -lc "pacman -Sy --noconfirm; pacman -S --noconfirm --needed make patch"
+      - name: Prefer msys tools on PATH
+        # make/curl/tar/sed for get-dakota-src (and patch, installed above).
+        run: echo "C:/msys64/usr/bin" >> "$GITHUB_PATH"
       - name: Cache Dakota source
+        # Platform-specific key: a linux-extracted tree contains symlinks the
+        # windows recipe deliberately excludes; sharing caches across platforms
+        # would silently resurrect them (or poison the shared key on failure).
         uses: actions/cache@v5
         with:
           path: dakota
-          key: dakota-src-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
+          key: dakota-src-win-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
       - name: Get dakota src
         run: make get-dakota-src
-        env:
-          PATH: "C:/msys64/usr/bin;${{ env.PATH }}"
       - name: Restore ccache
         uses: actions/cache/restore@v5
         with:
