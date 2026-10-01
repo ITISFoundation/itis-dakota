@@ -1,7 +1,17 @@
 import os
 import pathlib as pl
 import subprocess
+import sys
 import tempfile
+
+import pytest
+
+_WIN32_NO_FORK_DRIVERS = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="fork interface spawns POSIX shebang driver scripts (echo, ./driver, "
+    "rosenbrock), which Windows cannot execute; the Python callback interface "
+    "is covered by the other tests",
+)
 
 
 def test_dakota_executable_exists():
@@ -19,6 +29,7 @@ def test_dakota_executable_help():
     assert "usage" in output.lower() or "dakota" in output.lower()
 
 
+@_WIN32_NO_FORK_DRIVERS
 def test_dakota_executable_run_simple():
     """Test that dakota executable can run a simple input file."""
     # Create a simple dakota input file with system interface
@@ -74,6 +85,7 @@ responses
         ).exists(), "Dakota did not create tabular output file"
 
 
+@_WIN32_NO_FORK_DRIVERS
 def test_dakota_executable_check_syntax():
     """Test that dakota executable can check input file syntax."""
     dakota_input = """
@@ -121,6 +133,7 @@ responses
         ), f"Dakota syntax check failed: {result.stderr}"
 
 
+@_WIN32_NO_FORK_DRIVERS
 def test_dakota_executable_moga():
     """Test that dakota executable can run multi-objective genetic algorithm."""
     # Use a simpler approach with echo to avoid script complexity
@@ -231,6 +244,7 @@ with open(results_file, 'w') as f:
         ), f"Not enough MOGA evaluations performed. Found {len(data_lines)} lines in tabular file"
 
 
+@_WIN32_NO_FORK_DRIVERS
 def test_dakota_executable_restart():
     """Test that dakota executable can restart from a restart file."""
     # First run - create restart file

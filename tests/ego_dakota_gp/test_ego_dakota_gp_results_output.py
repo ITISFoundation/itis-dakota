@@ -1,5 +1,15 @@
 import os
 import subprocess
+import sys
+
+import pytest
+
+_WIN32_NO_FORK_DRIVERS = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="fork interface spawns a POSIX shebang driver script (rosenbrock_driver.py), "
+    "which Windows cannot execute; the Python callback interface is covered by "
+    "the other tests",
+)
 
 # Regression test for a Dakota crash (SIGSEGV / Windows 0xC0000005) that occurs
 # when the "dakota" Gaussian process backend is combined with results_output.
@@ -66,6 +76,7 @@ with open(results_file, "w") as fh:
 """
 
 
+@_WIN32_NO_FORK_DRIVERS
 def test_ego_dakota_gp_results_output(tmp_path):
     os.chdir(tmp_path)
 

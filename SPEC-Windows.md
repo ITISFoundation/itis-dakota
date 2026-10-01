@@ -61,7 +61,7 @@ T4qs|x|scripts/repair_wheel_windows.py: PATH-stage `.data/scripts` DLLs → `del
 T5tv|x|buildwheels.yml: `wheels-windows` job (dakota-src cache, pacman, ccache cache, cibuildwheel cp313/AMD64, wheel integrity, pytest, upload artifact; excluded from release/pypi needs)|V3rw,V6bc,V7df,I.ci
 T6wx|.|CI iteration: mingw-port patches into src_patches_v624 as dakota/QUESO configure/compile failures demand|C.src,C.queso,V5vz
 T7za|.|README: windows support status once CI green|C.scope
-T8rb|.|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
+T8rb|x|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
 
 ## §B Bugs
 
