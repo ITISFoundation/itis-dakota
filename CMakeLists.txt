@@ -26,6 +26,18 @@ else()
         # import library to a handful of decorated symbols and starves the
         # closed-world links of every sibling DLL. Force full export.
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--export-all-symbols")
+        # Side effect of the above: a DLL that statically absorbed an archive
+        # (colin.dll + libamplsolver.a, B5fe) copy-exports those members into
+        # its import library; a consumer linking BOTH (libdakota_src wants
+        # ASL_alloc directly and colin for Colin::) hits multiple-definition
+        # between the archive member and colin's copy. The copy wins with
+        # --allow-multiple-definition (it precedes on the line): every ASL
+        # user shares colin.dll's single core, exactly the shared-core layout
+        # from amplsolver's own-DLL era. Exe/module links carry the flag as
+        # the same interface expansion reaches them.
+        foreach(_dk_lk CMAKE_SHARED_LINKER_FLAGS CMAKE_EXE_LINKER_FLAGS CMAKE_MODULE_LINKER_FLAGS)
+            set(${_dk_lk} "${${_dk_lk}} -Wl,--allow-multiple-definition")
+        endforeach()
     else()
         # mingw: --gc-sections at DLL link time strips auto-exported sections
         # whose only callers live in other DLLs (observed on msys2 binutils),
