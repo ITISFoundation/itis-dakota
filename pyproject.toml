@@ -155,9 +155,9 @@ before-all = [
     # MSYS2 ships preinstalled on GitHub windows runners at C:\msys64.
     # `patch`/`make` are needed by `make get-dakota-src`; perl lives in
     # usr/bin already for Dakota's JSON codegen (core JSON::PP module).
-    # build_boost_regex.sh materializes libboost_regex-mt.a, which pacman
-    # no longer ships now that Boost.Regin is header-only in 1.92 (see script).
-    "C:/msys64/usr/bin/bash.exe -lc \"pacman -Sy --noconfirm; pacman -S --noconfirm --needed patch make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-boost mingw-w64-ucrt-x86_64-hdf5 mingw-w64-ucrt-x86_64-gsl mingw-w64-ucrt-x86_64-lapack mingw-w64-ucrt-x86_64-ccache; bash scripts/build_boost_regex.sh\"",
+    # (scripts/build_boost_regex.sh is NOT invoked here: cibuildwheel's
+    # before-all has no repo-root cwd on windows — the CI job runs it.)
+    "C:/msys64/usr/bin/bash.exe -lc \"pacman -Sy --noconfirm; pacman -S --noconfirm --needed patch make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-boost mingw-w64-ucrt-x86_64-hdf5 mingw-w64-ucrt-x86_64-gsl mingw-w64-ucrt-x86_64-lapack mingw-w64-ucrt-x86_64-ccache\"",
 ]
 
 [tool.cibuildwheel.windows.environment]
