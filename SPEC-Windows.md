@@ -82,7 +82,7 @@ T6wx|x|CI rounds 10–31 mingw port, green at dev41: 21 `src_patches_v624` patch
 T7za|x|README windows support status line (PoC artifact, LP64 restart caveat)|C.scope
 T8rb|x|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
 T9sw|x|TEMP PR scaffolding (buildwheels.yml gates for PR iteration) — REVERTED 2026-10-01 after first green windows build; linux/macos/sbom/dep-review/test jobs restored to upstream conditions (dep-review `if: github.event_name == 'pull_request'`)|C.scope
-T10am|.|Full-matrix verification run: windows cp312/cp313/cp314 × win_amd64 + unblocked linux(6)/macos(5)/sbom/dep-review/test(4) legs all green in one run|C.scope,V6bc,V7df
+T10am|x|Full-matrix verification run: windows cp312/cp313/cp314 × win_amd64 + unblocked linux(6)/macos(5)/sbom/dep-review/test(4) legs all green in one run — DONE run 36994909227 @5a2b2b2: 20/20 active jobs green (publish jobs skipped, V7df held); path required two fixes en route: B27mm (V10ix) + B28nx (V11kq)|C.scope,V6bc,V7df
 
 ## §B Bugs
 
