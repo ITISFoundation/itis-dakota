@@ -85,28 +85,35 @@ find_package(BLAS QUIET)
 find_package(LAPACK QUIET)
 # Use the plain signature: queso/hopspack/surfpack_fortran already use it in
 # dakota's tree and CMake forbids mixing signatures per target.
-if(TARGET queso AND GSL_LIBRARIES)
+# These edges exist ONLY for mingw's closed-world DLL links; on ELF these
+# symbols resolve at runtime via already-loaded libraries (upstream design).
+# Adding them on unix is NOT a no-op: extra DT_NEEDED entries shift .dynamic
+# and segment layout, which can move a library off auditwheel/patchelf's
+# page-boundary sweet spot into an ELF the dynamic loader rejects ("ELF load
+# command address/offset not page-aligned" on libsurfpack-<hash>.so, B28nx).
+# Keep unix artifacts byte-faithful to master (V4tx/V11kq).
+if((WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS) AND TARGET queso AND GSL_LIBRARIES)
   target_link_libraries(queso ${GSL_LIBRARIES})
 endif()
-if(TARGET hopspack AND BLAS_LIBRARIES)
+if((WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS) AND TARGET hopspack AND BLAS_LIBRARIES)
   target_link_libraries(hopspack ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 endif()
-if(TARGET surfpack_fortran AND BLAS_LIBRARIES)
+if((WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS) AND TARGET surfpack_fortran AND BLAS_LIBRARIES)
   target_link_libraries(surfpack_fortran ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 endif()
 # surfpack calls into pecos (CrossValidationIterator, CompressedSensingTool;
 # the edge was commented out upstream at src/CMakeLists.txt:82 and ELF
 # resolved it at runtime). pecos never references surfpack, so this stays a
 # forward edge. Plain signature to match dakota's uses.
-if(TARGET surfpack AND TARGET pecos_src)
+if((WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS) AND TARGET surfpack AND TARGET pecos_src)
   target_link_libraries(surfpack pecos_src)
 endif()
-if(TARGET surfpack AND TARGET conmin)
+if((WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS) AND TARGET surfpack AND TARGET conmin)
   target_link_libraries(surfpack conmin)
 endif()
 # NKM_Optimize.cpp also calls the NCSUOpt direct solver (ncsuopt_direct_);
 # same ELF-load-time-resolution class as conmin. NCSUOpt is a leaf.
-if(TARGET surfpack AND TARGET ncsuopt)
+if((WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS) AND TARGET surfpack AND TARGET ncsuopt)
   target_link_libraries(surfpack ncsuopt)
 endif()
 # mingw: DLL links are closed-world. On ELF, dakota_src.so deliberately
