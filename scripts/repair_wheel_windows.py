@@ -6,15 +6,25 @@ Two duties, mirroring what auditwheel does on Linux:
 1. ``delvewheel repair`` vendors every DLL that ``environment*.pyd`` needs
    (mingw-built Boost/HDF5/GSL/OpenBLAS plus libgcc/libstdc++/libgfortran/
    libwinpthread from MSYS2 ucrt64, plus the mingw-built TPL DLLs and
-   libdakota_src.dll staged in ``*.data/scripts``) into ``itis_dakota.libs``;
-   a load-order table preloads them so name-based imports resolve there
-   (mangling is disabled — see repair_with_delvewheel for why).
+   libdakota_src.dll staged in ``*.data/scripts``) into ``itis_dakota.libs``
+   with MANGLED names (the anti-DLL-hell default, required for a published
+   wheel). mingw PEs carry a COFF symtab overlay and GNU ld packs import
+   name strings with no slack; delvewheel can only mangle a dependent once
+   its overlay is gone (it then appends a section for the longer names).
+   So we first pre-strip every PE in the wheel (and its staged copies on
+   the search PATH) with the MSYS2 GNU strip, and also pass ``--strip`` as
+   a fallback for anything else with an overlay. Stripping also shrinks
+   the wheel dramatically (unstripped mingw PEs blew the artifact up to
+   ~90 MB vs ~34 MB on linux; PyPI's default per-file limit is 60 MB).
 
 2. delvewheel only understands extension modules, so ``dakota.exe`` is handled
    here: Windows has no rpath and a program's own directory is the first DLL
    search location, so we compute the exe's DLL dependency closure (skipping
    DLLs present in System32) and stage the closure as sibling files inside
    ``*.data/scripts``, which pip installs into the venv ``Scripts`` directory.
+   The exe is never rewritten by delvewheel, so its closure keeps the bare
+   import names; vendored (mangled) copies are indexed under their pre-mangle
+   names so the closure resolves either way.
 
 RECORD is fully regenerated afterwards, and the result is zip-verified.
 """
@@ -60,23 +70,71 @@ def is_system_dll(name: str) -> bool:
     return (sys32 / name).exists()
 
 
+def strip_pe(path: Path) -> bool:
+    """Run GNU ``strip -s`` over one PE file (removes symtab/debug info and,
+    for mingw links, the COFF symtab file overlay). Returns True on success."""
+    strip_bin = Path(MSYS_UCRT64_BIN) / "strip.exe"
+    if not strip_bin.exists():
+        strip_bin = Path("strip")  # fall back to PATH
+    try:
+        subprocess.run([str(strip_bin), "-s", str(path)], check=True)
+        return True
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"warning: strip failed on {path.name}: {exc}")
+        return False
+
+
+def prestrip_wheel(wheel: Path, dest_dir: Path) -> Path:
+    """Strip every exe/dll/pyd inside the wheel before delvewheel runs.
+
+    Two reasons, both product-quality: (a) delvewheel can only mangle a
+    dependent once its PE overlay is gone (GNU ld's COFF symtab overlay is
+    exactly what blocked B25), and (b) unstripped mingw PEs put the wheel
+    over PyPI's default 60 MB per-file limit. Returns the stripped wheel's
+    path (the input file is left untouched)."""
+    out = dest_dir / wheel.name
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        with zipfile.ZipFile(wheel) as zf:
+            zf.extractall(td_path)
+        pes = [
+            p
+            for p in td_path.rglob("*")
+            if p.suffix.lower() in {".exe", ".dll", ".pyd"}
+        ]
+        stripped = 0
+        for pe in pes:
+            before = pe.stat().st_size
+            if strip_pe(pe):
+                stripped += before - pe.stat().st_size
+        rewrite_record(td_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+            for p in sorted(td_path.rglob("*")):
+                if p.is_file():
+                    zf.write(p, p.relative_to(td_path).as_posix())
+        print(
+            f"pre-stripped {len(pes)} PE files"
+            f" ({stripped / 1048576:.1f} MiB smaller) -> {out.name}"
+        )
+    return out
+
+
 def repair_with_delvewheel(wheel: Path, dest_dir: Path, extra_path: list[str]) -> Path:
     env = dict(os.environ)
     env["PATH"] = os.pathsep.join(extra_path + [env.get("PATH", "")])
-    # --no-mangle-all: delvewheel's documented answer to the mingw padding
-    # error — a mingw-built libdakota_src.dll imports ~40 vendored DLLs and
-    # its .rdata string space is tight (GNU ld packs it, plus a COFF symtab
-    # overlay), so rewritten mangled names don't fit in place. Without
-    # mangling nothing rewrites any import table; the load-order table still
-    # preloads every itis_dakota.libs DLL by full path, and name-keyed
-    # resolution then hits the already-loaded module table.
+    # Default name mangling ON (published-wheel hygiene: vendored DLLs get
+    # hash-suffixed names so no package ever binds another's bare-name DLL).
+    # --strip lets delvewheel itself strip any dependent whose overlay blocks
+    # mangling (our own PEs were already pre-stripped; this covers the rest);
+    # GNU strip resolves via MSYS_UCRT64_BIN prepended above.
     subprocess.run(
         [
             sys.executable,
             "-m",
             "delvewheel",
             "repair",
-            "--no-mangle-all",
+            "--strip",
             "-w",
             str(dest_dir),
             str(wheel),
@@ -205,17 +263,18 @@ def main() -> None:
 
     extra_path = [MSYS_UCRT64_BIN]
 
-    # Stage the mingw-built TPL/libdakota_src DLLs from the pre-repair wheel
-    # onto PATH so delvewheel can resolve them (analog of the LD_LIBRARY_PATH
-    # dance in repair_wheel.sh).
+    # Stage the mingw-built TPL/libdakota_src DLLs from the PRE-STRIPPED wheel
+    # onto PATH so delvewheel can resolve (and vendor the stripped, mangleable
+    # copies) — analog of the LD_LIBRARY_PATH dance in repair_wheel.sh.
     scratch = Path(tempfile.mkdtemp())
     try:
-        with zipfile.ZipFile(wheel) as zf:
+        prestripped = prestrip_wheel(wheel, scratch)
+        with zipfile.ZipFile(prestripped) as zf:
             names = [n for n in zf.namelist() if re.search(r"\.data/scripts/.*\.dll$", n)]
             zf.extractall(scratch, members=names)
         staged = [p.parent for p in scratch.rglob("*.dll")]
         extra_path += [str(p) for p in set(staged)]
-        repaired = repair_with_delvewheel(wheel, dest_dir, extra_path)
+        repaired = repair_with_delvewheel(prestripped, dest_dir, extra_path)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
 

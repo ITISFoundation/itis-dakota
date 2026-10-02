@@ -459,9 +459,9 @@ jobs:
           path: ./wheelhouse/*.whl
 
   # Windows leg (SPEC-Windows.md): win_amd64 × repo python set, mirroring the
-  # linux job's per-python matrix. Artifact name deliberately does NOT start
-  # with `wheels-` so the release/test-pypi/pypi `wheels-*` download globs
-  # never pick it up (V7df).
+  # linux job's per-python matrix. Artifacts follow the `wheels-*` naming
+  # convention so the release/test-pypi/pypi download globs pick them up like
+  # every other platform (V7df: publish-scope by artifact NAME).
   wheels-windows:
     name: Build wheel on windows ${{ matrix.python }} win_amd64
     runs-on: windows-2025
@@ -575,13 +575,18 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
-          name: windows-poc-${{ env.CIBW_PYTHON }}_win_amd64
+          name: wheels-windows-${{ env.CIBW_PYTHON }}_win_amd64
           path: ./wheelhouse/*.whl
 
   test:
     name: Test wheel on ${{ matrix.os }} ${{ matrix.arch }}
-    needs: [wheels-linux, wheels-macos]
+    needs: [wheels-linux, wheels-macos, wheels-windows]
     runs-on: ${{ matrix.github-runner }}
+    defaults:
+      run:
+        # The wheel install below relies on shell glob expansion; pin bash so
+        # the windows leg doesn't land on PowerShell (no glob expansion).
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -602,6 +607,10 @@ jobs:
             arch: arm64
             github-runner: "macos-14"
             artifact: "wheels-macos-arm64-2"
+          - os: windows
+            arch: x86_64
+            github-runner: "windows-2025"
+            artifact: "wheels-windows-cp314_win_amd64"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6

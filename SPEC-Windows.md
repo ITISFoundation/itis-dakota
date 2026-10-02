@@ -4,7 +4,8 @@
 
 Produce `itis_dakota` `win_amd64` wheel from same Dakota 6.24.0 source + patches, via
 cibuildwheel on `windows-*` GitHub runner with MSYS2/MinGW-w64 (ucrt64) toolchain.
-Scope: win_amd64 × repo python set (3.12/3.13/3.14), CI artifact only, ⊥ PyPI publish.
+Scope: win_amd64 × repo python set (3.12/3.13/3.14), publish-scope equal to the other
+platforms (test-PyPI → PyPI chain).
 
 ## §C Constraints
 
@@ -18,8 +19,8 @@ Scope: win_amd64 × repo python set (3.12/3.13/3.14), CI artifact only, ⊥ PyPI
   (dakota-packages 5c0356b), needs Intel Fortran, static-lib defaults.
 - C.tpls — system TPLs from MSYS2 pacman, direct analog of `yum install` (linux) /
   `brew install` (macos): boost, hdf5, gsl, lapack(+openblas), + msys `patch`/`make`.
-- C.scope — win_amd64 × python 3.12/3.13/3.14 (same set as linux/macos legs). ⊥ win32,
-  ⊥ windows-arm64, ⊥ PyPI/test-PyPI.
+- C.scope — win_amd64 × python 3.12/3.13/3.14 (same set as linux/macos legs), published to
+  PyPI like the other platforms. ⊥ win32, ⊥ windows-arm64.
 - C.abi — target python.org CPython (MSVC-built); `numpy`/`h5py` build+runtime deps come
   as prebuilt win wheels; mingw pyd links them via CMake FindPython.
 - C.queso — `HAVE_QUESO=ON` target (feature parity). If QUESO blocks mingw → PoC may ship
@@ -35,8 +36,9 @@ Scope: win_amd64 × repo python set (3.12/3.13/3.14), CI artifact only, ⊥ PyPI
 
 - toml: `[tool.cibuildwheel.windows]` + `…windows.environment` → windows build config.
 - cmd: `scripts/repair_wheel_windows.py {dest_dir} {wheel}` → repaired wheel in dest_dir.
-- ci: job `wheels-windows` → artifact `windows-poc-cp3XX_win_amd64` per python leg (name
-  kept off the `wheels-*` glob so publish jobs ⊥ see it, artifact-only scope).
+- ci: job `wheels-windows` → artifact `wheels-windows-cp3XX_win_amd64` per python leg
+  (publish-scope naming: release/test-pypi/pypi `wheels-*` globs consume it, and the
+  `test` matrix runs a windows leg against exactly that artifact).
 - cmd: `make get-dakota-src` unchanged on unix; runs under msys bash on windows.
 - env: CI sets `CIBW_BUILD=cp313-*`, `CIBW_ARCHS=AMD64`.
 
@@ -52,7 +54,9 @@ V5vz: ∀ `src_patches_v624/*` applied identically ∀ platform; mingw-specific 
 `__MINGW32__`/CMake platform guards.
 V6bc: windows build matrix yields exactly `cp3XX-cp3XX-win_amd64` per configured python;
   ⊥ win32 wheels.
-V7df: `release`, `test-pypi`, `pypi` jobs ⊥ consume windows artifacts.
+V7df: windows artifacts follow the `wheels-windows-*` naming convention, so `release`,
+  `test-pypi`, `pypi` `wheels-*` globs DO consume them; the `test` matrix MUST contain a
+  windows leg installing exactly the artifact the publish chain would ship.
 V8gm: every link edge INTO exported `dakota_src` is a raw `LINK_LIBRARIES`-property item fed
   `$<TARGET_LINKER_FILE:...>`; ∄ PUBLIC/INTERFACE edge from it to a target outside the
   DakotaTargets export set — CMake's `install(EXPORT)` closure check rejects even
@@ -69,6 +73,11 @@ V11kq: every root-CMakeLists target_link_libraries/set_property(edge) addition i
   "Idempotent on unix" is NOT neutrality: added DT_NEEDED entries shift .dynamic/segment
   layout and can move a library into auditwheel/patchelf's page-boundary corruption window
   (loader rejects at dlopen; repair scripts already carry that bug's exe workaround; B28nx).
+V12ma: published windows wheels vendored-deliver DLLs with delvewheel MANGLED names
+  (no `--no-mangle-all` on a publish-scope repair) — bare-name vendored DLLs are a
+  two-way DLL-hell hazard on a shared process. Enabler: pre-strip every wheel-resident PE
+  (GNU strip -s) so delvewheel can append its names section; also keeps wheels under
+  PyPI's default 60 MB per-file limit (unstripped mingw PEs ≈ 90 MB wheel).
 
 ## §T Tasks
 
@@ -83,6 +92,7 @@ T7za|x|README windows support status line (PoC artifact, LP64 restart caveat)|C.
 T8rb|x|test portability win32: skipif on fork-interface tests spawning shebang drivers (echo/./driver/rosenbrock); python-callback tests ⊥ skip|V3rw
 T9sw|x|TEMP PR scaffolding (buildwheels.yml gates for PR iteration) — REVERTED 2026-10-01 after first green windows build; linux/macos/sbom/dep-review/test jobs restored to upstream conditions (dep-review `if: github.event_name == 'pull_request'`)|C.scope
 T10am|x|Full-matrix verification run: windows cp312/cp313/cp314 × win_amd64 + unblocked linux(6)/macos(5)/sbom/dep-review/test(4) legs all green in one run — DONE run 36994909227 @5a2b2b2: 20/20 active jobs green (publish jobs skipped, V7df held); path required two fixes en route: B27mm (V10ix) + B28nx (V11kq)|C.scope,V6bc,V7df
+T11py|.|Publish integration: artifacts renamed wheels-windows-cp3XX_win_amd64 (V7df inverted: publish globs consume windows), test matrix gains windows leg, repair switches to mangled+pre-stripped (V12ma); green PR run + wheel size < 60 MB; real test-PyPI/PyPI round-trip can only verify on first master push post-merge|C.scope,V7df,V12ma
 
 ## §B Bugs
 
