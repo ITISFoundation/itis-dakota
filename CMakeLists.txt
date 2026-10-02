@@ -191,15 +191,17 @@ install(TARGETS dakota
         COMPONENT dakota_for_python
         DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
+# Pure per-kind DESTINATION form: installs the .so/.dylib (LIBRARY) on unix
+# AND the .dll (RUNTIME) on Windows. Do NOT add a bare artifact-kind list in
+# front of these clauses: mixing a bare `LIBRARY RUNTIME` list with per-kind
+# <KIND> DESTINATION clauses makes CMake (4.4.3, microcosm-verified) silently
+# install NOTHING for the target on unix (only the clause matching the
+# platform artifact survives: .dll on Windows, nothing valid on unix). That
+# regression cost 11 unix legs: auditwheel/delocate then cannot locate
+# libdakota_src because it was never staged.
 install(TARGETS dakota_src
-        LIBRARY RUNTIME
         COMPONENT dakota_for_python
         LIBRARY DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY}
-        # The artifact-kind list above gates what installs: on Windows a
-        # SHARED target's DLL is the RUNTIME artifact (LIBRARY is unix-only
-        # and the import lib is ARCHIVE, which we deliberately omit). Under
-        # unix a SHARED lib has no RUNTIME artifact, so listing both kinds
-        # changes nothing there.
         RUNTIME DESTINATION ${PY_BUILD_CMAKE_BIN_DIRECTORY})
 
 # Glob+install whatever TPL .so/.dylib/.dll got built, for auditwheel/delocate/
