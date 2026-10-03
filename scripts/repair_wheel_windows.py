@@ -171,7 +171,9 @@ def stage_exe_dlls(wheel_path: Path) -> None:
 
         def _pool_add(dll: Path) -> None:
             key = dll.name.lower()
-            base = re.sub(r"-[0-9a-f]{8,16}$", "", dll.stem.lower())
+            # delvewheel's mangle hash length has moved across versions
+            # (8 -> 32 hex chars), so tolerate any hex suffix >= 8.
+            base = re.sub(r"-[0-9a-f]{8,64}$", "", dll.stem.lower())
             pool.setdefault(key, dll)
             if base != dll.stem.lower():
                 pool.setdefault(base + ".dll", dll)
