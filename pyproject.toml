@@ -139,7 +139,7 @@ CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 # See SPEC-Windows.md. QUESO is not MSVC-clean and MSVC has no Fortran;
 # ucrt64 GCC/gfortran is the same mingw-w64 family SciPy uses on Windows
 # via rtools, and pacman is the analog of yum (linux) / brew (macos).
-# Dakotas's own Fortran TPLs (pecos, DIRECT) build with gfortran directly.
+# Dakota's own Fortran TPLs (pecos, DIRECT) build with gfortran directly.
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel.windows]
 skip = "pp* *-win32"
