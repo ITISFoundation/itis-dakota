@@ -492,16 +492,19 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: C:/ccache-win
-          # run_id-keyed (wim review): actions/cache silently no-ops a save
-          # whose primary key already exists, so the old hashFiles key froze
-          # the cache at its first save forever. Unique keys make every run
-          # persist its objects; restore-keys picks up the newest previous
-          # entry (ccache objects are content-addressed, so cross-source
-          # restore is safe and hashFiles invalidation was counterproductive).
+          # run_id + python scoped (wim: same-key saves are silent no-ops that
+          # froze the cache at its first save; copilot: run_id alone is still
+          # shared by the three matrix legs, so first-save-wins discarded two
+          # legs' objects). Per-leg keys make every save count. restore-keys
+          # prefers this leg's history, then falls back to any leg's newest
+          # entry — safe because ccache objects are content-addressed and
+          # mostly python-independent.
           # NB: hit rate stays ~0% until the stable build root lands (B31/T14cc
           # — cibw's random per-run temp dir poisons compile-command hashes).
-          key: ccache-windows-amd64-${{ github.run_id }}
-          restore-keys: ccache-windows-amd64-
+          key: ccache-windows-amd64-${{ matrix.python }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-windows-amd64-${{ matrix.python }}-
+            ccache-windows-amd64-
       - name: Ensure ccache dir exists
         run: mkdir -p /c/ccache-win
       - uses: pypa/cibuildwheel@v3.4.1
@@ -514,7 +517,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: C:/ccache-win
-          key: ccache-windows-amd64-${{ github.run_id }}
+          key: ccache-windows-amd64-${{ matrix.python }}-${{ github.run_id }}
       - name: Show ccache stats
         if: always()
         # Same reporting as the linux/macos jobs (step-summary block + hit

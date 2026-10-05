@@ -4,15 +4,6 @@ import subprocess
 import sys
 import tempfile
 
-import pytest
-
-_WIN32_NO_FORK_DRIVERS = pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="fork interface spawns POSIX shebang driver scripts (echo, ./driver, "
-    "rosenbrock), which Windows cannot execute; the Python callback interface "
-    "is covered by the other tests",
-)
-
 
 def test_dakota_executable_exists():
     """Test that the dakota executable is available in the PATH."""
@@ -29,7 +20,13 @@ def test_dakota_executable_help():
     assert "usage" in output.lower() or "dakota" in output.lower()
 
 
-@_WIN32_NO_FORK_DRIVERS
+# (V15nb/B32) Driver invocations in this file launch through the active
+# interpreter (`sys.executable` + script) instead of shebang/`echo` execution,
+# so every test here runs on win32 too; the win32 fork-driver skips are gone.
+# Interpreter paths must be space-free (Dakota tokenizes the driver string).
+_PY = sys.executable.replace("\\", "/")
+
+
 def test_dakota_executable_run_simple():
     """Test that dakota executable can run a simple input file."""
     # Create a simple dakota input file with system interface
@@ -51,19 +48,36 @@ variables
         descriptors    'x1' 'x2'
 
 interface
-    analysis_drivers = 'echo'
+    analysis_drivers = '{python} driver.py'
     fork
 
 responses
     response_functions = 1
     no_gradients
     no_hessians
-"""
+""".format(python=_PY)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pl.Path(tmp_dir)
         input_file = tmp_path / "dakota_test.in"
         input_file.write_text(dakota_input)
+
+        # Fork driver: read the two variable values, write one response.
+        # (Replaces the old 'echo' driver, a POSIX shell builtin that Windows
+        # cannot exec; the interpreter launch works on every platform.)
+        (tmp_path / "driver.py").write_text(
+            """#!/usr/bin/env python3
+import sys
+
+params_file, results_file = sys.argv[1], sys.argv[2]
+with open(params_file) as f:
+    lines = f.readlines()
+x1 = float(lines[1].split()[0])
+x2 = float(lines[2].split()[0])
+with open(results_file, "w") as f:
+    f.write(f"{x1 + x2} response\\n")
+"""
+        )
 
         # Run dakota with the input file
         result = subprocess.run(
@@ -136,10 +150,10 @@ responses
         ), f"Dakota syntax check failed: {result.stderr}"
 
 
-@_WIN32_NO_FORK_DRIVERS
 def test_dakota_executable_moga():
     """Test that dakota executable can run multi-objective genetic algorithm."""
-    # Use a simpler approach with echo to avoid script complexity
+    # Use a simpler approach with an interpreter-launched script to avoid
+    # script complexity (and to work where shebang exec is unavailable).
     dakota_input = """
 environment
     tabular_data
@@ -158,7 +172,7 @@ variables
         descriptors    'x1'  'x2'
 
 interface
-    analysis_drivers = 'rosenbrock'
+    analysis_drivers = '{python} rosenbrock'
     fork
     parameters_file = 'params.in'
     results_file = 'results.out'
@@ -169,7 +183,7 @@ responses
     objective_functions = 2
     no_gradients
     no_hessians
-"""
+""".format(python=_PY)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pl.Path(tmp_dir)
@@ -247,7 +261,6 @@ with open(results_file, 'w') as f:
         ), f"Not enough MOGA evaluations performed. Found {len(data_lines)} lines in tabular file"
 
 
-@_WIN32_NO_FORK_DRIVERS
 def test_dakota_executable_restart():
     """Test that dakota executable can restart from a restart file."""
     # First run - create restart file
@@ -270,14 +283,14 @@ variables
         descriptors   'x1' 'x2'
 
 interface
-    analysis_drivers = './driver'
+    analysis_drivers = '{python} driver'
     fork
 
 responses
     response_functions = 1
     no_gradients
     no_hessians
-"""
+""".format(python=_PY)
 
     # Second run - restart and add more samples
     dakota_input_restart = """
@@ -300,14 +313,14 @@ variables
         descriptors   'x1' 'x2'
 
 interface
-    analysis_drivers = './driver'
+    analysis_drivers = '{python} driver'
     fork
 
 responses
     response_functions = 1
     no_gradients
     no_hessians
-"""
+""".format(python=_PY)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pl.Path(tmp_dir)
