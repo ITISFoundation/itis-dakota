@@ -158,6 +158,11 @@ before-all = [
     # (scripts/build_boost_regex.sh is NOT invoked here: cibuildwheel's
     # before-all has no repo-root cwd on windows — the CI job runs it.)
     "C:/msys64/usr/bin/bash.exe -lc \"pacman -Sy --noconfirm; pacman -S --noconfirm --needed --disable-download-timeout patch make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-boost mingw-w64-ucrt-x86_64-hdf5 mingw-w64-ucrt-x86_64-gsl mingw-w64-ucrt-x86_64-lapack mingw-w64-ucrt-x86_64-ccache\"",
+    # Per-run stats baseline (mirrors the linux before-all), so the job's
+    # "Show ccache stats" step reports THIS run's hit rate, not the cache's
+    # lifetime totals. Full tool path: the login shell lacks ucrt64 on PATH,
+    # and ccache.exe arrives via the pacman line above.
+    "C:/msys64/usr/bin/bash.exe -lc \"CCACHE_DIR=C:/ccache-win /c/msys64/ucrt64/bin/ccache.exe --zero-stats\"",
 ]
 
 [tool.cibuildwheel.windows.environment]

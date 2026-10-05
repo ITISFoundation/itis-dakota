@@ -509,6 +509,27 @@ jobs:
         with:
           path: C:/ccache-win
           key: ccache-windows-amd64-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
+      - name: Show ccache stats
+        if: always()
+        # Same reporting as the linux/macos jobs (step-summary block + hit
+        # rate notice). ccache ran with CCACHE_DIR=C:/ccache-win (pyproject
+        # windows env) and was zeroed in before-all, so these are THIS run's
+        # numbers; the ucrt64 binary path is qualified because host bash's
+        # PATH lacks ucrt64.
+        run: |
+          CC=/c/msys64/ucrt64/bin/ccache.exe
+          if [ ! -x "$CC" ]; then
+            echo "## ccache stats" >> "$GITHUB_STEP_SUMMARY"
+            echo "ccache not installed (before-all did not run)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          export CCACHE_DIR=C:/ccache-win
+          echo "## ccache stats" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          "$CC" --show-stats >> "$GITHUB_STEP_SUMMARY" 2>&1
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          RATE=$("$CC" --print-stats 2>/dev/null | awk '/^direct_cache_hit/{hits+=$2} /^preprocessed_cache_hit/{hits+=$2} /^cache_miss/{misses+=$2} END{total=hits+misses; if (total>0) printf "%.2f", (hits/total)*100}')
+          echo "::notice title=ccache stats - ${{ github.job }} ${{ matrix.python }}::Hit rate: ${RATE:-unknown}%"
       - name: Verify wheel integrity
         run: python scripts/verify_wheels.py
       - name: Run tests
