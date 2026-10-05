@@ -480,7 +480,7 @@ jobs:
             artifact: "wheels-macos-x86_64-3"
           - os: macos
             arch: arm64
-            github-runner: "macos-14"
+            github-runner: "macos-15"
             artifact: "wheels-macos-arm64-2"
     steps:
       - uses: actions/checkout@v6

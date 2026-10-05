@@ -137,9 +137,7 @@ CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 # bottles are built for the runner's macOS version, so forcing an older
 # deployment target than the bottles causes delocate to refuse the wheel
 # (libraries' LC_BUILD_VERSION exceeds the target). Letting cibuildwheel
-# default to the runner OS keeps both consistent. On the GitHub runners
-# this yields macosx_13_x (macos-13/x86_64) and macosx_14_0 (macos-14/arm64)
-# wheels.
+# default to the runner OS keeps both consistent. 
 
 [tool.py-build-cmake.cmake]
 source_path = "."
