@@ -492,9 +492,15 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: C:/ccache-win
-          # One key across the three python legs: compile objects are mostly
-          # python-version independent, so warm runs share nearly everything.
-          key: ccache-windows-amd64-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
+          # run_id-keyed (wim review): actions/cache silently no-ops a save
+          # whose primary key already exists, so the old hashFiles key froze
+          # the cache at its first save forever. Unique keys make every run
+          # persist its objects; restore-keys picks up the newest previous
+          # entry (ccache objects are content-addressed, so cross-source
+          # restore is safe and hashFiles invalidation was counterproductive).
+          # NB: hit rate stays ~0% until the stable build root lands (B31/T14cc
+          # — cibw's random per-run temp dir poisons compile-command hashes).
+          key: ccache-windows-amd64-${{ github.run_id }}
           restore-keys: ccache-windows-amd64-
       - name: Ensure ccache dir exists
         run: mkdir -p /c/ccache-win
@@ -508,7 +514,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: C:/ccache-win
-          key: ccache-windows-amd64-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
+          key: ccache-windows-amd64-${{ github.run_id }}
       - name: Show ccache stats
         if: always()
         # Same reporting as the linux/macos jobs (step-summary block + hit

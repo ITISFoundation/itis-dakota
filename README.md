@@ -25,7 +25,7 @@ Pre-built wheels are published on PyPI for these platforms, for CPython
 |---|---|---|
 | Linux | `manylinux_2_28` (x86_64, aarch64) | [manylinux](https://github.com/pypa/manylinux) compatible distributions |
 | macOS | `macosx_*_arm64`, `macosx_*_x86_64` | |
-| Windows | `win_amd64` | built in CI with an MSYS2/MinGW-w64 (ucrt64) toolchain; runs on any 64-bit Windows with the Universal CRT (Windows 10/11 out of the box) |
+| Windows | `win_amd64` | built in CI with an MSYS2/MinGW-w64 (ucrt64) toolchain; runs on any 64-bit Windows with the Universal CRT (Windows 10/11 out of the box). **Not yet on PyPI:** these wheels (~80 MB) exceed PyPI's default 60 MB per-file limit, so `pip install` availability starts after a one-time project limit increase and the next release |
 
 On Windows, install a regular 64-bit CPython from
 [python.org](https://www.python.org/downloads/windows/) (or any virtual
