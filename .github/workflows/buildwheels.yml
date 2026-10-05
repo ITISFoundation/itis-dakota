@@ -528,7 +528,10 @@ jobs:
           path: dakota
           key: dakota-src-win-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
       - name: Get dakota src
-        run: make get-dakota-src
+        run: |
+          if [ ! -f dakota/CMakeLists.txt ]; then
+            make get-dakota-src
+          fi
       - name: Restore ccache
         uses: actions/cache/restore@v5
         with:
