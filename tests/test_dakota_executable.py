@@ -85,7 +85,10 @@ responses
         ).exists(), "Dakota did not create tabular output file"
 
 
-@_WIN32_NO_FORK_DRIVERS
+# No windows skip here: dakota -check stops after input parsing and never
+# resolves or spawns the 'echo' fork driver below, so this test is valid on
+# every platform (the fork-driver skipif stays on the tests that actually
+# run studies).
 def test_dakota_executable_check_syntax():
     """Test that dakota executable can check input file syntax."""
     dakota_input = """

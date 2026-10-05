@@ -132,43 +132,10 @@ jobs:
           path: .ccache
           key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
-        # Docker Desktop on macOS sometimes corrupts wheels via `docker cp`
-        # from the cibuildwheel container (intermittent BadCRC). repair_wheel.sh
-        # writes a duplicate via the project bind-mount at .cibw_wheels_safe/
-        # which uses virtiofs reliably. If the wheelhouse copy is corrupted,
-        # swap in the safe copy. On native Linux runners both are identical.
-        run: |
-          python3 - <<'PY'
-          import zipfile, glob, sys, os, shutil
-          failed = False
-          for whl in sorted(glob.glob('wheelhouse/*.whl')):
-              try:
-                  with zipfile.ZipFile(whl) as zf:
-                      bad = zf.testzip()
-              except zipfile.BadZipFile as e:
-                  bad = str(e)
-              if not bad:
-                  with zipfile.ZipFile(whl) as zf:
-                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
-                  continue
-              safe = os.path.join('.cibw_wheels_safe', os.path.basename(whl))
-              print(f'CORRUPTED: {whl} (issue: {bad})', file=sys.stderr)
-              if os.path.exists(safe):
-                  try:
-                      with zipfile.ZipFile(safe) as zf:
-                          if zf.testzip() is None:
-                              shutil.copyfile(safe, whl)
-                              print(f'RECOVERED: replaced {whl} from {safe}')
-                              continue
-                  except zipfile.BadZipFile:
-                      pass
-                  print(f'  safe copy also corrupted: {safe}', file=sys.stderr)
-              else:
-                  print(f'  no safe copy at {safe}', file=sys.stderr)
-              failed = True
-          if failed:
-              sys.exit(1)
-          PY
+        # Shared gate script (CRC check + recovery from .cibw_wheels_safe/,
+        # the virtiofs bind-mount copy that dodges Docker Desktop's
+        # intermittent `docker cp` BadCRC corruption on macOS-style setups).
+        run: python3 scripts/verify_wheels.py
       - name: Show ccache stats
         if: always()
         run: |
@@ -419,21 +386,7 @@ jobs:
           path: ~/Library/Caches/ccache
           key: ccache-macos-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
-        run: |
-          python3 - <<'PY'
-          import zipfile, glob, sys
-          failed = False
-          for whl in sorted(glob.glob('wheelhouse/*.whl')):
-              with zipfile.ZipFile(whl) as zf:
-                  bad = zf.testzip()
-                  if bad:
-                      print(f'CORRUPTED: {whl} (first bad entry: {bad})', file=sys.stderr)
-                      failed = True
-                  else:
-                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
-          if failed:
-              sys.exit(1)
-          PY
+        run: python3 scripts/verify_wheels.py
       - name: Show ccache stats
         if: always()
         run: |
@@ -528,6 +481,9 @@ jobs:
           path: dakota
           key: dakota-src-win-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
       - name: Get dakota src
+        # Same guard as linux/mac jobs: make get-dakota-src starts with
+        # `rm -rf dakota`, so it must not run when the cache step above
+        # already restored the patched tree.
         run: |
           if [ ! -f dakota/CMakeLists.txt ]; then
             make get-dakota-src
@@ -554,21 +510,7 @@ jobs:
           path: C:/ccache-win
           key: ccache-windows-amd64-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
-        run: |
-          python - <<'PY'
-          import zipfile, glob, sys
-          failed = False
-          for whl in sorted(glob.glob('wheelhouse/*.whl')):
-              with zipfile.ZipFile(whl) as zf:
-                  bad = zf.testzip()
-                  if bad:
-                      print(f'CORRUPTED: {whl} (first bad entry: {bad})', file=sys.stderr)
-                      failed = True
-                  else:
-                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
-          if failed:
-              sys.exit(1)
-          PY
+        run: python scripts/verify_wheels.py
       - name: Run tests
         run: |
           pip install pytest
@@ -613,6 +555,14 @@ jobs:
           - os: windows
             arch: x86_64
             github-runner: "windows-2025"
+            artifact: "wheels-windows-cp314_win_amd64"
+          # Second windows OS generation: the build runner's OS is NOT the
+          # support target (mingw ucrt64 wheels run on any UCRT Windows,
+          # 7 SP1+); this leg installs the SAME artifact on an older runner
+          # to prove that rather than assume it.
+          - os: windows-2022
+            arch: x86_64
+            github-runner: "windows-2022"
             artifact: "wheels-windows-cp314_win_amd64"
     steps:
       - uses: actions/checkout@v6

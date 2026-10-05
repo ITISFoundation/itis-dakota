@@ -206,14 +206,23 @@ def stage_exe_dlls(wheel_path: Path) -> None:
             work.extend(dll_imports(src))
 
         if missing:
-            # mingw-built DLLs that delvewheel failed to vendor are real
-            # breakage at runtime; anything else is presumed a false alarm.
-            mingw_style = {m for m in missing if m.startswith("lib")}
-            if mingw_style:
+            # A venv's Python DLLs (python3.dll / python3XX.dll / free-threaded
+            # t-variants) are deliberately NOT vendored: the venv's Scripts
+            # directory supplies them beside dakota.exe at runtime (they live
+            # next to python.exe, not in System32, so is_system_dll cannot
+            # excuse them). Anything else unresolved is real breakage —
+            # third-party DLLs without the mingw lib* prefix (zlib1.dll, ...)
+            # must not slip through the guard (Copilot review, B30 round).
+            # Current artifacts import none of these (green run staged 29 DLLs
+            # with an empty missing set), so this allowance never masks them.
+            tolerated = {m for m in missing if re.fullmatch(r"python\d{1,3}t?\.dll", m)}
+            hard = missing - tolerated
+            if hard:
                 raise SystemExit(
-                    f" dakota.exe needs DLLs not found in wheel: {sorted(mingw_style)}"
+                    f" dakota.exe needs DLLs not found in wheel: {sorted(hard)}"
                 )
-            print(f"warning: treating unresolved imports as system DLLs: {sorted(missing)}")
+            if tolerated:
+                print(f"note: venv-provided python DLL imports: {sorted(tolerated)}")
 
         rewrite_record(td_path)
         rezip(wheel_path, td_path)

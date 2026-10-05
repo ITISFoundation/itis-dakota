@@ -18,16 +18,25 @@ pip install itis-dakota
 Requirements
 ------------
 
-At the moment the wheel can be installed on **Linux** ([manylinux_2_28](https://github.com/pypa/manylinux) compatible distributions) only.
+Pre-built wheels are published on PyPI for these platforms, for CPython
+3.12–3.14:
 
-A **Windows** (`win_amd64`, CPython 3.12–3.14) wheel is built in CI from the same source
-using an MSYS2/MinGW-w64 (ucrt64) toolchain and passes the test suite there; it joins the
-PyPI releases alongside the Linux and macOS wheels from the next release onward. Known
-limitation: Dakota's binary restart files are not portable across platforms
-(Boost archives are native-format checked, e.g. `sizeof(long)` differs between
-Linux and Windows).
+| Platform | Wheel tags | Notes |
+|---|---|---|
+| Linux | `manylinux_2_28` (x86_64, aarch64) | [manylinux](https://github.com/pypa/manylinux) compatible distributions |
+| macOS | `macosx_*_arm64`, `macosx_*_x86_64` | |
+| Windows | `win_amd64` | built in CI with an MSYS2/MinGW-w64 (ucrt64) toolchain; runs on any 64-bit Windows with the Universal CRT (Windows 10/11 out of the box) |
 
-Support for other operating systems will be added in the future.
+On Windows, install a regular 64-bit CPython from
+[python.org](https://www.python.org/downloads/windows/) (or any virtual
+environment based on it, e.g. `venv` or conda); the `dakota.exe` launcher
+and its bundled runtime DLLs are installed next to the interpreter and
+need no separate compiler or Visual C++ redistributable. The Windows
+"embeddable zip" distribution is untested; use the full installer.
+
+Known limitation: Dakota's binary restart files are not portable across
+platforms (Boost archives are native-format checked, e.g. `sizeof(long)`
+differs between Linux and Windows).
 
 Using the wheel
 ------------------

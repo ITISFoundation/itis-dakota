@@ -1,0 +1,27 @@
+--- a/packages/external/acro/tpl/3po/CMakeLists.txt
++++ b/packages/external/acro/tpl/3po/CMakeLists.txt
+@@ -1,6 +1,20 @@
+-add_library(3po
+-  cobyla2c/cobyla.c
+-  hooke/hooke_tpl.cpp
+-)
++# mingw: build 3po STATIC so the cross-library callback binds inside one
++# binary. interfaces' Hooke.cpp provides hooke_func() for 3po's
++# hooke()/best_nearby(); on ELF that bound via the process global scope,
++# but a shared lib3po.dll would lock to any DLL-local definition and
++# silently evaluate the Hooke interface objective in the wrong binary
++# (B30). Staticizing folds 3po's objects into interfaces.dll next to
++# Hooke.cpp, so the real callback is used.
++if(MINGW)
++  add_library(3po STATIC
++    cobyla2c/cobyla.c
++    hooke/hooke_tpl.cpp
++  )
++else()
++  add_library(3po
++    cobyla2c/cobyla.c
++    hooke/hooke_tpl.cpp
++  )
++endif()
+ install(TARGETS 3po EXPORT ${ExportTarget} DESTINATION lib)
+ install(FILES cobyla2c/cobyla.h DESTINATION include/3po)

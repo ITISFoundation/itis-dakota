@@ -74,15 +74,23 @@ target_compile_definitions(dakota_src PRIVATE
 
 # mingw shared-library links are closed-world; these targets referenced
 # libraries they never linked, relying on ELF runtime resolution.  Spell out
-# the edges (harmless no-ops on Linux/macOS): queso calls GSL; hopspack and
-# surfpack_fortran call BLAS/LAPACK routines (dgemm_, dswap_, xerbla_, ...).
+# the edges — Windows-only by necessity (B28nx: unguarded, these DT_NEEDED
+# additions shifted unix .dynamic layouts into patchelf's corruption
+# window). queso calls GSL; hopspack and surfpack_fortran call BLAS/LAPACK
+# routines (dgemm_, dswap_, xerbla_, ...).
 # dakota only caches these finds inside subdirectory scopes (TPL_* vars are
 # trilinos-local; imported targets are not parent-visible), so re-run the
 # find-modules here: they reuse dakota's cache hits and expose the documented
-# *_LIBRARIES cache variables at root scope.
-find_package(GSL QUIET)
-find_package(BLAS QUIET)
-find_package(LAPACK QUIET)
+# *_LIBRARIES cache variables at root scope. Discovery is inert, but it is
+# guarded along with the edges below (V11kq) so unix configure never enters
+# this whole closed-world region.
+option(DAKOTA_FORCE_CLOSED_WORLD_LINKS
+       "Mirror mingw closed-world dakota_src links on ELF (verification)" OFF)
+if(WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS)
+  find_package(GSL QUIET)
+  find_package(BLAS QUIET)
+  find_package(LAPACK QUIET)
+endif()
 # Use the plain signature: queso/hopspack/surfpack_fortran already use it in
 # dakota's tree and CMake forbids mixing signatures per target.
 # These edges exist ONLY for mingw's closed-world DLL links; on ELF these
@@ -128,10 +136,9 @@ endif()
 # property are still validated too. The form that passes is the raw
 # property fed $<TARGET_LINKER_FILE:...> ITEMS: file paths, not target
 # names, so neither the interface nor the export target graph ever sees
-# them. Scoped to Windows (plus an option for the Linux closed-world
-# emulation rig) so shipping Linux/macOS artifacts stay bit-identical.
-option(DAKOTA_FORCE_CLOSED_WORLD_LINKS
-       "Mirror mingw closed-world dakota_src links on ELF (verification)" OFF)
+# them. Scoped to Windows (plus the DAKOTA_FORCE_CLOSED_WORLD_LINKS option
+# for the Linux closed-world emulation rig) so shipping Linux/macOS
+# artifacts stay bit-identical.
 if(TARGET dakota_src AND (WIN32 OR DAKOTA_FORCE_CLOSED_WORLD_LINKS))
   foreach(_dk_tpl approxnn conmin cport ddace dfftpack dream eutils ethreads
                   fsudace hopspack jega jega_fe lhs lhs_mod lhs_mods moga
