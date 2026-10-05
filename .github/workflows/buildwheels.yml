@@ -340,7 +340,7 @@ jobs:
             test-cp: "cp314"
           - name: "arm64 (1/2)"
             arch: arm64
-            github-runner: "macos-14"
+            github-runner: "macos-15"
             wheel-platform: "arm64"
             cibw-build: "cp312-*"
             group: "1"
@@ -348,7 +348,7 @@ jobs:
             test-cp: "cp312"
           - name: "arm64 (2/2)"
             arch: arm64
-            github-runner: "macos-14"
+            github-runner: "macos-15"
             wheel-platform: "arm64"
             cibw-build: "cp313-* cp314-*"
             group: "2"
@@ -480,7 +480,7 @@ jobs:
             artifact: "wheels-macos-x86_64-3"
           - os: macos
             arch: arm64
-            github-runner: "macos-14"
+            github-runner: "macos-15"
             artifact: "wheels-macos-arm64-2"
     steps:
       - uses: actions/checkout@v6
