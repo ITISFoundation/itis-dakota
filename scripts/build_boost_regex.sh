@@ -23,7 +23,7 @@
 # the C++ API only, header-inlined); it just has to exist and link cleanly.
 set -xueo pipefail           # -x: CI logs show the exact death point; the
                              # nested-msys layers on GH runners have burned
-                             # us thrice (see SPEC-Windows B2gh) and stay
+                             # us thrice (see SPEC-AddWindowsWheel B2gh) and stay
                              # observable on purpose.
 # Self-contained env: the CI job invokes this through nested bash layers,
 # so we cannot rely on /etc/profile having set anything.

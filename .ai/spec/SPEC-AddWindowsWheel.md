@@ -1,4 +1,4 @@
-# SPEC-Windows — itis-dakota win_amd64 wheel (PoC)
+# SPEC-AddWindowsWheel — itis-dakota win_amd64 wheel (PoC)
 
 ## §G Goal
 

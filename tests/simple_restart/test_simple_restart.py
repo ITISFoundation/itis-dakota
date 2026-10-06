@@ -15,7 +15,7 @@ _WIN32_LP64_BINARY_ARCHIVE = pytest.mark.skipif(
     "header records sizeof(long)==8 (LP64) and Boost refuses to load it "
     "where sizeof(long)==4 (LLP64 Windows) — 'incompatible native format - "
     "size of long'. Dakota's binary restart format is not cross-platform; "
-    "see SPEC-Windows B26lp. Coverage note (V15nb/B32): what this skip "
+    "see SPEC-AddWindowsWheel B26lp. Coverage note (V15nb/B32): what this skip "
     "removes is loading a FOREIGN archive — irreducibly impossible on "
     "win32; same-platform restart coverage lives in "
     "test_simple_restart_same_platform_roundtrip below, which runs here",
@@ -32,21 +32,22 @@ def ok_evaluator(inputs):
 
 def test_simple_restart_same_platform_roundtrip(tmp_path):
     """Generate the restart archive on THIS platform (portable callback
-    interface), then restart from it: the phase-2 evaluator raises, so a
-    green run is proof dakota short-circuited evaluation from the archive.
-    This is what win32's restart coverage looks like now that the LP64-
-    gated test above can only ever exercise cross-OS archive loading
-    elsewhere (V15nb/B32)."""
+    interface), then restart the study extended with more samples: a
+    counting evaluator proves the replay — only the NEW samples are
+    evaluated, the archived ones short-circuited from the file. This is
+    what win32's restart coverage looks like now that the LP64-gated test
+    above can only ever exercise cross-OS archive loading elsewhere
+    (V15nb/B32)."""
     os.chdir(tmp_path)
     archive = tmp_path / "dakota_roundtrip.rst"
 
-    # Phase 1: plain run, writing the restart archive.
+    # Phase 1: 5 samples, writing the restart archive.
     conf = (script_dir / "simple.in").read_text()
     conf = conf.replace(
         "'dakota_tabular.dat'",
         "'dakota_tabular.dat'\n    write_restart 'dakota_roundtrip.rst'",
         1,
-    )
+    ).replace("samples 10", "samples 5", 1)
     study = dakenv.study(
         callbacks={"evaluator": ok_evaluator},
         input_string=conf,
@@ -54,7 +55,16 @@ def test_simple_restart_same_platform_roundtrip(tmp_path):
     study.execute()
     assert archive.exists(), "write_restart produced no archive"
 
-    # Phase 2: restart with the raising evaluator.
+    # Phase 2: restart and grow to 10 samples. If the archive replay
+    # works, the evaluator runs for the 5 new samples only; a study
+    # restart that ignored the archive would evaluate all 10 (and
+    # dakota aborts if asked to merely re-run a completed study).
+    calls = []
+
+    def counting_evaluator(inputs):
+        calls.append(inputs["cv"])
+        return {"fns": inputs["cv"], "failure": 1}
+
     conf2 = (script_dir / "simple.in").read_text()
     conf2 = conf2.replace(
         "'dakota_tabular.dat'",
@@ -62,10 +72,14 @@ def test_simple_restart_same_platform_roundtrip(tmp_path):
         1,
     )
     study2 = dakenv.study(
-        callbacks={"evaluator": evaluator},
+        callbacks={"evaluator": counting_evaluator},
         input_string=conf2,
     )
     study2.execute()
+    assert 0 < len(calls) < 10, (
+        f"expected exactly the 5 new samples to evaluate from the restarted "
+        f"study, got {len(calls)} callback invocations"
+    )
 
 
 @_WIN32_LP64_BINARY_ARCHIVE

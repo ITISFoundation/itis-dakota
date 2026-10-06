@@ -411,7 +411,7 @@ jobs:
           name: wheels-macos-${{ matrix.wheel-platform }}-${{ matrix.group }}
           path: ./wheelhouse/*.whl
 
-  # Windows leg (SPEC-Windows.md): win_amd64 × repo python set, mirroring the
+  # Windows leg (.ai/spec/SPEC-AddWindowsWheel.md): win_amd64 × repo python set, mirroring the
   # linux job's per-python matrix. Artifacts follow the `wheels-*` naming
   # convention so the release/test-pypi/pypi download globs pick them up like
   # every other platform (V7df: publish-scope by artifact NAME).

@@ -122,7 +122,7 @@ DAKOTA_SRC_TARBALL_URL := https://github.com/snl-dakota/dakota/releases/download
 # `make` + `patch` via pacman; curl/tar/sed ship with msys.
 
 # All 20 symlinks present in the v6.24.0 tarball, excluded on EVERY platform
-# (identical extraction everywhere, SPEC-Windows V5vz). Windows runners
+# (identical extraction everywhere, SPEC-AddWindowsWheel V5vz). Windows runners
 # cannot extract symlinks (no privilege without developer mode), and none of
 # these are build inputs: Tribits CI/doc/example aliases, one examples driver
 # alias, and EIGEN3Config.cmake — that last one was already dropped because on
