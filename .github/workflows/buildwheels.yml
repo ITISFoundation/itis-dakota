@@ -132,43 +132,10 @@ jobs:
           path: .ccache
           key: ccache-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
-        # Docker Desktop on macOS sometimes corrupts wheels via `docker cp`
-        # from the cibuildwheel container (intermittent BadCRC). repair_wheel.sh
-        # writes a duplicate via the project bind-mount at .cibw_wheels_safe/
-        # which uses virtiofs reliably. If the wheelhouse copy is corrupted,
-        # swap in the safe copy. On native Linux runners both are identical.
-        run: |
-          python3 - <<'PY'
-          import zipfile, glob, sys, os, shutil
-          failed = False
-          for whl in sorted(glob.glob('wheelhouse/*.whl')):
-              try:
-                  with zipfile.ZipFile(whl) as zf:
-                      bad = zf.testzip()
-              except zipfile.BadZipFile as e:
-                  bad = str(e)
-              if not bad:
-                  with zipfile.ZipFile(whl) as zf:
-                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
-                  continue
-              safe = os.path.join('.cibw_wheels_safe', os.path.basename(whl))
-              print(f'CORRUPTED: {whl} (issue: {bad})', file=sys.stderr)
-              if os.path.exists(safe):
-                  try:
-                      with zipfile.ZipFile(safe) as zf:
-                          if zf.testzip() is None:
-                              shutil.copyfile(safe, whl)
-                              print(f'RECOVERED: replaced {whl} from {safe}')
-                              continue
-                  except zipfile.BadZipFile:
-                      pass
-                  print(f'  safe copy also corrupted: {safe}', file=sys.stderr)
-              else:
-                  print(f'  no safe copy at {safe}', file=sys.stderr)
-              failed = True
-          if failed:
-              sys.exit(1)
-          PY
+        # Shared gate script (CRC check + recovery from .cibw_wheels_safe/,
+        # the virtiofs bind-mount copy that dodges Docker Desktop's
+        # intermittent `docker cp` BadCRC corruption on macOS-style setups).
+        run: python3 scripts/verify_wheels.py
       - name: Show ccache stats
         if: always()
         run: |
@@ -419,21 +386,7 @@ jobs:
           path: ~/Library/Caches/ccache
           key: ccache-macos-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'src_patches_v624/*.patch') }}
       - name: Verify wheel integrity
-        run: |
-          python3 - <<'PY'
-          import zipfile, glob, sys
-          failed = False
-          for whl in sorted(glob.glob('wheelhouse/*.whl')):
-              with zipfile.ZipFile(whl) as zf:
-                  bad = zf.testzip()
-                  if bad:
-                      print(f'CORRUPTED: {whl} (first bad entry: {bad})', file=sys.stderr)
-                      failed = True
-                  else:
-                      print(f'OK: {whl} ({len(zf.namelist())} entries)')
-          if failed:
-              sys.exit(1)
-          PY
+        run: python3 scripts/verify_wheels.py
       - name: Show ccache stats
         if: always()
         run: |
@@ -458,10 +411,157 @@ jobs:
           name: wheels-macos-${{ matrix.wheel-platform }}-${{ matrix.group }}
           path: ./wheelhouse/*.whl
 
+  # Windows leg (.ai/spec/SPEC-AddWindowsWheel.md): win_amd64 × repo python set, mirroring the
+  # linux job's per-python matrix. Artifacts follow the `wheels-*` naming
+  # convention so the release/test-pypi/pypi download globs pick them up like
+  # every other platform (V7df: publish-scope by artifact NAME).
+  wheels-windows:
+    name: Build wheel on windows ${{ matrix.python }} win_amd64
+    runs-on: windows-2025
+    permissions:
+      contents: write
+    needs: tag
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13", "3.14"]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Set cibuildwheel Python version
+        run: |
+          python_version="${{ matrix.python }}"
+          cibw_python="cp${python_version/./}"
+          echo "CIBW_PYTHON=$cibw_python" >> $GITHUB_ENV
+      - uses: actions/checkout@v6
+        if: github.ref != 'refs/heads/master'
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v6
+        if: github.ref == 'refs/heads/master'
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.tag.outputs.new_tag }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+      - name: Install msys build tools (make, patch)
+        # Same toolchain cibuildwheel's before-all expects; idempotent there.
+        run: C:/msys64/usr/bin/bash.exe -lc "pacman -Sy --noconfirm; pacman -S --noconfirm --needed --disable-download-timeout make patch"
+      - name: Materialize libboost_regex-mt.a
+        # pacman boost 1.92 ships no libboost_regex (Boost.Regex is
+        # header-only upstream; only its 2 C-API shims ever compile), yet
+        # module-mode FindBoost still demands a real file for the `regex`
+        # component. See scripts/build_boost_regex.sh. Ensured here rather
+        # than in before-all because cibuildwheel gives windows before-all
+        # no repo-root cwd. Runs BEFORE the GITHUB_PATH prepend: once msys
+        # usr/bin leads PATH, GH's `shell: bash` resolves to msys bash and
+        # step wrappers misbehave (B2gh). Non-login `bash -c` + fully
+        # qualified tool paths: the msys LOGIN shell proved unreliable under
+        # nested runner invocation (cwd relocation AND silent exit-1).
+        run: C:/msys64/usr/bin/bash.exe -c "/usr/bin/pacman -Sy --noconfirm && /usr/bin/pacman -S --noconfirm --needed --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-boost && /usr/bin/bash $PWD/scripts/build_boost_regex.sh"
+      - name: Install uv
+        # [tool.cibuildwheel] build-frontend = "build[uv]" — cibuildwheel needs
+        # uv discoverable on PATH *before* before-all runs (macOS gets it from
+        # brew-deps, Linux from the image; on Windows the host python's Scripts
+        # dir is on PATH).
+        run: python -m pip install --quiet --upgrade uv && uv --version
+      - name: Prefer msys tools on PATH
+        # make/curl/tar/sed for get-dakota-src (and patch, installed above).
+        run: echo "C:/msys64/usr/bin" >> "$GITHUB_PATH"
+      - name: Cache Dakota source
+        # Platform-specific key: a linux-extracted tree contains symlinks the
+        # windows recipe deliberately excludes; sharing caches across platforms
+        # would silently resurrect them (or poison the shared key on failure).
+        uses: actions/cache@v5
+        with:
+          path: dakota
+          key: dakota-src-win-v6.24.0-${{ hashFiles('src_patches_v624/*.patch') }}
+      - name: Get dakota src
+        # Same guard as linux/mac jobs: make get-dakota-src starts with
+        # `rm -rf dakota`, so it must not run when the cache step above
+        # already restored the patched tree.
+        run: |
+          if [ ! -f dakota/CMakeLists.txt ]; then
+            make get-dakota-src
+          fi
+      - name: Restore ccache
+        uses: actions/cache/restore@v5
+        with:
+          path: C:/ccache-win
+          # run_id + python scoped (wim: same-key saves are silent no-ops that
+          # froze the cache at its first save; copilot: run_id alone is still
+          # shared by the three matrix legs, so first-save-wins discarded two
+          # legs' objects). Per-leg keys make every save count. restore-keys
+          # prefers this leg's history, then falls back to any leg's newest
+          # entry — safe because ccache objects are content-addressed and
+          # mostly python-independent.
+          # NB: hit rate stays ~0% until the stable build root lands (B31/T14cc
+          # — cibw's random per-run temp dir poisons compile-command hashes).
+          key: ccache-windows-amd64-${{ matrix.python }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-windows-amd64-${{ matrix.python }}-
+            ccache-windows-amd64-
+      - name: Ensure ccache dir exists
+        run: mkdir -p /c/ccache-win
+      - uses: pypa/cibuildwheel@v3.4.1
+        env:
+          CIBW_BUILD: ${{ env.CIBW_PYTHON }}-*
+          CIBW_ARCHS: AMD64
+      # Save right after compile, before tests/cancellation can lose it.
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: C:/ccache-win
+          key: ccache-windows-amd64-${{ matrix.python }}-${{ github.run_id }}
+      - name: Show ccache stats
+        if: always()
+        # Same reporting as the linux/macos jobs (step-summary block + hit
+        # rate notice). ccache ran with CCACHE_DIR=C:/ccache-win (pyproject
+        # windows env) and was zeroed in before-all, so these are THIS run's
+        # numbers; the ucrt64 binary path is qualified because host bash's
+        # PATH lacks ucrt64.
+        run: |
+          CC=/c/msys64/ucrt64/bin/ccache.exe
+          if [ ! -x "$CC" ]; then
+            echo "## ccache stats" >> "$GITHUB_STEP_SUMMARY"
+            echo "ccache not installed (before-all did not run)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          export CCACHE_DIR=C:/ccache-win
+          echo "## ccache stats" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          "$CC" --show-stats >> "$GITHUB_STEP_SUMMARY" 2>&1
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          RATE=$("$CC" --print-stats 2>/dev/null | awk '/^direct_cache_hit/{hits+=$2} /^preprocessed_cache_hit/{hits+=$2} /^cache_miss/{misses+=$2} END{total=hits+misses; if (total>0) printf "%.2f", (hits/total)*100}')
+          echo "::notice title=ccache stats - ${{ github.job }} ${{ matrix.python }}::Hit rate: ${RATE:-unknown}%"
+      - name: Verify wheel integrity
+        run: python scripts/verify_wheels.py
+      - name: Run tests
+        run: |
+          pip install pytest
+          pip install --force-reinstall --no-deps ./wheelhouse/itis_dakota*${{ env.CIBW_PYTHON }}*.whl
+          pip install numpy pydantic
+          pytest
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheels-windows-${{ env.CIBW_PYTHON }}_win_amd64
+          path: ./wheelhouse/*.whl
+
   test:
     name: Test wheel on ${{ matrix.os }} ${{ matrix.arch }}
-    needs: [wheels-linux, wheels-macos]
+    needs: [wheels-linux, wheels-macos, wheels-windows]
     runs-on: ${{ matrix.github-runner }}
+    defaults:
+      run:
+        # The wheel install below relies on shell glob expansion; pin bash so
+        # the windows leg doesn't land on PowerShell (no glob expansion).
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -482,6 +582,18 @@ jobs:
             arch: arm64
             github-runner: "macos-15"
             artifact: "wheels-macos-arm64-2"
+          - os: windows
+            arch: x86_64
+            github-runner: "windows-2025"
+            artifact: "wheels-windows-cp314_win_amd64"
+          # Second windows OS generation: the build runner's OS is NOT the
+          # support target (mingw ucrt64 wheels run on any UCRT Windows,
+          # 7 SP1+); this leg installs the SAME artifact on an older runner
+          # to prove that rather than assume it.
+          - os: windows-2022
+            arch: x86_64
+            github-runner: "windows-2022"
+            artifact: "wheels-windows-cp314_win_amd64"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6

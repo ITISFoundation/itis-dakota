@@ -1,0 +1,78 @@
+--- a/packages/external/JEGA/CMakeLists.txt
++++ b/packages/external/JEGA/CMakeLists.txt
+@@ -5,6 +5,16 @@
+ 
+ project(JEGA)
+ 
++# mingw DLL links are closed-world, and jega references vtables defined in
++# moga/soga while moga/soga link jega: a reference cycle no PE import library
++# can bootstrap.  Build the whole family static so it closes inside its single
++# consumer (libdakota_src), which also keeps JEGA's singletons unique.
++if(WIN32 AND MINGW)
++  set(JEGA_LIBTYPE STATIC)
++else()
++  set(JEGA_LIBTYPE "")
++endif()
++
+ # Set the export name for install targets; parent packages likely want
+ # to override this to the name of their target
+ set(ExportTarget ${CMAKE_PROJECT_NAME}-targets CACHE STRING 
+--- a/packages/external/JEGA/src/CMakeLists.txt
++++ b/packages/external/JEGA/src/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-add_library(jega
++add_library(jega ${JEGA_LIBTYPE}
+   BitManipulator.cpp 
+   FitnessRecord.cpp 
+   GeneticAlgorithm.cpp 
+--- a/packages/external/JEGA/MOGA/CMakeLists.txt
++++ b/packages/external/JEGA/MOGA/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-add_library(moga
++add_library(moga ${JEGA_LIBTYPE}
+   src/MOGA.cpp 
+   src/Convergers/MOGAConverger.cpp 
+   src/FitnessAssessors/LayerFitnessAssessor.cpp 
+--- a/packages/external/JEGA/SOGA/CMakeLists.txt
++++ b/packages/external/JEGA/SOGA/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-add_library(soga 
++add_library(soga ${JEGA_LIBTYPE}
+   src/FitnessAssessors/ExteriorPenaltyFitnessAssessor.cpp 
+   src/FitnessAssessors/PenaltyFitnessAssessorBase.cpp 
+   src/FitnessAssessors/WeightedSumOnlyFitnessAssessor.cpp 
+--- a/packages/external/JEGA/Utilities/CMakeLists.txt
++++ b/packages/external/JEGA/Utilities/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-add_library(utilities
++add_library(utilities ${JEGA_LIBTYPE}
+   src/BasicParameterDatabaseImpl.cpp 
+   src/BooleanDesignVariableType.cpp 
+   src/ConstraintInfo.cpp 
+--- a/packages/external/JEGA/FrontEnd/Core/CMakeLists.txt
++++ b/packages/external/JEGA/FrontEnd/Core/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-add_library(jega_fe 
++add_library(jega_fe ${JEGA_LIBTYPE}
+   src/AlgorithmConfig.cpp 
+   src/ConfigHelper.cpp 
+   src/Driver.cpp 
+--- a/packages/external/JEGA/eddy/utilities/CMakeLists.txt
++++ b/packages/external/JEGA/eddy/utilities/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-add_library(eutils
++add_library(eutils ${JEGA_LIBTYPE}
+   src/EDDY_DebugScope.cpp 
+   src/Math.cpp 
+   src/RandomNumberGenerator.cpp
+--- a/packages/external/JEGA/eddy/threads/CMakeLists.txt
++++ b/packages/external/JEGA/eddy/threads/CMakeLists.txt
+@@ -3,7 +3,7 @@
+ #  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/pthreads/include")
+ #endif()
+ 
+-add_library(ethreads
++add_library(ethreads ${JEGA_LIBTYPE}
+   src/condition.cpp 
+   src/mutex.cpp 
+   src/thread_exceptions.cpp 

@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 
 # Regression test for a Dakota crash (SIGSEGV / Windows 0xC0000005) that occurs
 # when the "dakota" Gaussian process backend is combined with results_output.
@@ -13,6 +14,13 @@ import subprocess
 #
 # Only `gaussian_process dakota` triggers it; `surfpack` uses its own optimizer.
 
+# The driver is invoked through the ACTIVE PYTHON INTERPRETER rather than via
+# its shebang line: a bare `rosenbrock_driver.py` fork driver is not executable
+# on Windows, and skipping here would have dropped the only coverage of this
+# regression on the very platform whose failure mode (0xC0000005) it encodes.
+# Dakota tokenizes the driver string, so the invocation is
+# <python> <script> <params_file> <results_file> — exactly what DRIVER reads
+# from argv; paths must be free of spaces (true for CI and python.org installs).
 DAKOTA_INPUT = """
 environment,
   tabular_data
@@ -33,7 +41,7 @@ variables,
     descriptors      "X0"  "X1"
 
 interface,
-    analysis_driver = "rosenbrock_driver.py"
+    analysis_driver = "{python} rosenbrock_driver.py"
         fork
         file_tag
         parameters_file = "params.in"
@@ -74,7 +82,9 @@ def test_ego_dakota_gp_results_output(tmp_path):
     driver.chmod(0o755)
 
     input_file = tmp_path / "ego_dakota_gp.in"
-    input_file.write_text(DAKOTA_INPUT)
+    input_file.write_text(
+        DAKOTA_INPUT.format(python=sys.executable.replace("\\", "/"))
+    )
 
     result = subprocess.run(
         ["dakota", "-i", input_file.name],

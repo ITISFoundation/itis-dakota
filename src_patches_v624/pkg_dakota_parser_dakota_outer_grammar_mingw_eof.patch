@@ -1,0 +1,17 @@
+--- a/packages/dakota_parser/dakota_parser/include/dakota_outer_grammar.hpp
++++ b/packages/dakota_parser/dakota_parser/include/dakota_outer_grammar.hpp
+@@ -6,6 +6,14 @@
+ namespace dakota {
+ namespace outer {
+ 
++// mingw-w64: <io.h> declares a global `eof(int)` function; the bare `eof`
++// rule uses below would resolve to that non-type (a global declaration beats
++// the `using namespace tao::pegtl` directive in name lookup) and break the
++// grammar's template arguments. This using-declaration restores the PEGTL
++// rule and is a no-op on platforms without ::eof. Generated inner parsers
++// from tools/generator_common.py already qualify tao::pegtl::eof.
++using tao::pegtl::eof;
++
+ using namespace tao::pegtl;
+ 
+ // ============================================================================

@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib as pl
+import sys
 
 import pytest
 
@@ -8,11 +9,26 @@ import dakota.environment as dakenv
 
 script_dir = pl.Path(__file__).parent
 
+_WIN32_LP64_BINARY_ARCHIVE = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="dakota.rst is a binary Boost archive generated on Linux; its "
+    "header records sizeof(long)==8 (LP64) and Boost refuses to load it "
+    "where sizeof(long)==4 (LLP64 Windows) — 'incompatible native format - "
+    "size of long'. Dakota's binary restart format is not cross-platform; "
+    "see SPEC-AddWindowsWheel B26lp. Coverage note (V15nb/B32): what this skip "
+    "removes is loading a FOREIGN archive — irreducibly impossible on "
+    "win32. Same-platform write/read restart coverage lives on the exe "
+    "path: tests/test_dakota_executable.py::test_dakota_executable_restart "
+    "(subprocess-isolated; multi-phase dakenv studies in one process are "
+    "contamination-prone, see SPEC B33)",
+)
+
 
 def evaluator(inputs):
     raise Exception("We are supposed to restart from old file")
 
 
+@_WIN32_LP64_BINARY_ARCHIVE
 @pytest.mark.parametrize("input_format", ["classic", "json"])
 def test_simple_restart(tmp_path, input_format):
     print("Starting dakota")

@@ -1,0 +1,19 @@
+--- a/packages/external/ampl/CMakeLists.txt
++++ b/packages/external/ampl/CMakeLists.txt
+@@ -133,7 +133,15 @@
+   xp1known.c
+   xp2known.c)
+ 
+-add_library(amplsolver ${amplsolver_SRCS})
++if(WIN32 AND MINGW)
++  # The mingw-w64 binutils import library for this DLL does not carry the
++  # plain-name references (ASL_alloc, Infinity, ...) that colin/scolib/
++  # dakota_src link against; link ASL as a static archive instead. The vendored
++  # ASL's only global data is constant, so per-library copies are harmless.
++  add_library(amplsolver STATIC ${amplsolver_SRCS})
++else()
++  add_library(amplsolver ${amplsolver_SRCS})
++endif()
+ 
+ option(AMPL_HAVE_DLOPEN "Toggle support for dlopen in AMPL" OFF)
+ if (AMPL_HAVE_DLOPEN)

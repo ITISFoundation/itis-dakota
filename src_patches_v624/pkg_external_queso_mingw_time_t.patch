@@ -1,0 +1,184 @@
+--- a/packages/external/queso/src/core/src/Environment.C
++++ b/packages/external/queso/src/core/src/Environment.C
+@@ -53,6 +53,16 @@
+ // queso error handling
+ #include <queso/asserts.h>
+ 
++// On Windows (UCRT) time_t is 64-bit while struct timeval carries tv_sec as
++// long, so ctime(&tv.tv_sec) does not compile there. ctime() returns a static
++// buffer, so feeding it a local time_t copy is safe and is behavior-identical
++// on Linux/macOS.
++static char *queso_ctime(const struct timeval * tv)
++{
++  time_t sec = tv->tv_sec;
++  return ctime(&sec);
++}
++
+ //-----------------------------
+ // Library versioning routines
+ //-----------------------------
+@@ -248,14 +258,14 @@
+ 
+   if (this->displayVerbosity() > 0) {
+     if (m_subDisplayFile) {
+-       *m_subDisplayFile << "Ending run at "    << ctime(&timevalNow.tv_sec)
++       *m_subDisplayFile << "Ending run at "    << queso_ctime(&timevalNow)
+                          << "Total run time = " << timevalNow.tv_sec - m_timevalBegin.tv_sec
+                          << " seconds"
+                          << std::endl;
+     }
+ 
+     if (m_fullRank == 0) {
+-      std::cout << "Ending run at "    << ctime(&timevalNow.tv_sec)
++      std::cout << "Ending run at "    << queso_ctime(&timevalNow)
+                 << "Total run time = " << timevalNow.tv_sec - m_timevalBegin.tv_sec
+                 << " seconds"
+                 << std::endl;
+@@ -1294,7 +1304,7 @@
+     }
+ 
+     if (m_fullRank == 0) {
+-      std::cout << "Beginning run at " << ctime(&m_timevalBegin.tv_sec)
++      std::cout << "Beginning run at " << queso_ctime(&m_timevalBegin)
+                 << std::endl;
+     }
+   }
+@@ -1395,7 +1405,7 @@
+ 
+     QUESO_version_print(*m_subDisplayFile);
+ 
+-    *m_subDisplayFile << "Beginning run at " << ctime(&m_timevalBegin.tv_sec)
++    *m_subDisplayFile << "Beginning run at " << queso_ctime(&m_timevalBegin)
+                       << std::endl;
+   }
+ 
+@@ -1560,7 +1570,7 @@
+ 
+     QUESO_version_print(std::cout);
+ 
+-    std::cout << "Beginning run at " << ctime(&m_timevalBegin.tv_sec)
++    std::cout << "Beginning run at " << queso_ctime(&m_timevalBegin)
+               << std::endl;
+   }
+ 
+@@ -1643,7 +1653,7 @@
+ 
+     QUESO_version_print(*m_subDisplayFile);
+ 
+-    *m_subDisplayFile << "Beginning run at " << ctime(&m_timevalBegin.tv_sec)
++    *m_subDisplayFile << "Beginning run at " << queso_ctime(&m_timevalBegin)
+                       << std::endl;
+   }
+ 
+--- a/packages/external/queso/src/stats/src/MLSampling.C
++++ b/packages/external/queso/src/stats/src/MLSampling.C
+@@ -35,6 +35,19 @@
+ 
+ #include <queso/FiniteDistribution.h>
+ 
++#include <sys/time.h>
++#include <time.h>
++
++// On Windows (UCRT) time_t is 64-bit while struct timeval carries tv_sec as
++// long, so ctime(&tv.tv_sec) does not compile there. ctime() returns a static
++// buffer, so feeding it a local time_t copy is safe and is behavior-identical
++// on Linux/macOS.
++static char *queso_ctime(const struct timeval * tv)
++{
++  time_t sec = tv->tv_sec;
++  return ctime(&sec);
++}
++
+ namespace QUESO {
+ 
+ #ifdef QUESO_HAS_GLPK
+@@ -702,7 +715,7 @@
+                               << ", step "                << m_currStep
+                               << ": chainIdMax = "        << chainIdMax
+                               << ", numberOfPositions = " << numberOfPositions
+-                              << ", at "                  << ctime(&timevalEntering.tv_sec)
++                              << ", at "                  << queso_ctime(&timevalEntering)
+                               << std::endl;
+       *m_env.subDisplayFile() << "KEY In MLSampling<P_V,P_M>::generateBalLinkedChains_all()"
+                               << ", level "                  << m_currLevel+LEVEL_REF_ID
+@@ -867,7 +880,7 @@
+                             << ", level " << m_currLevel+LEVEL_REF_ID
+                             << ", step "  << m_currStep
+                             << ": ended chain loop after " << loopTime << " seconds"
+-                            << ", calling fullComm().Barrier() at " << ctime(&timevalBarrier.tv_sec)
++                            << ", calling fullComm().Barrier() at " << queso_ctime(&timevalBarrier)
+                             << std::endl;
+   }
+ 
+@@ -882,7 +895,7 @@
+                             << ", level " << m_currLevel+LEVEL_REF_ID
+                             << ", step "  << m_currStep
+                             << ": after " << barrierTime << " seconds in fullComm().Barrier()"
+-                            << ", at " << ctime(&timevalLeaving.tv_sec)
++                            << ", at " << queso_ctime(&timevalLeaving)
+                             << std::endl;
+   }
+ 
+@@ -967,7 +980,7 @@
+                               << ", step "                << m_currStep
+                               << ": chainIdMax = "        << chainIdMax
+                               << ", numberOfPositions = " << numberOfPositions
+-                              << ", at "                  << ctime(&timevalEntering.tv_sec)
++                              << ", at "                  << queso_ctime(&timevalEntering)
+                               << std::endl;
+       *m_env.subDisplayFile() << "KEY In MLSampling<P_V,P_M>::generateUnbLinkedChains_all()"
+                               << ", level "                  << m_currLevel+LEVEL_REF_ID
+@@ -1131,7 +1144,7 @@
+                             << ", level " << m_currLevel+LEVEL_REF_ID
+                             << ", step "  << m_currStep
+                             << ": ended chain loop after " << loopTime << " seconds"
+-                            << ", calling fullComm().Barrier() at " << ctime(&timevalBarrier.tv_sec)
++                            << ", calling fullComm().Barrier() at " << queso_ctime(&timevalBarrier)
+                             << std::endl;
+   }
+ 
+@@ -1146,7 +1159,7 @@
+                             << ", level " << m_currLevel+LEVEL_REF_ID
+                             << ", step "  << m_currStep
+                             << ": after " << barrierTime << " seconds in fullComm().Barrier()"
+-                            << ", at " << ctime(&timevalLeaving.tv_sec)
++                            << ", at " << queso_ctime(&timevalLeaving)
+                             << std::endl;
+   }
+ 
+@@ -4042,7 +4055,7 @@
+ 
+   if ((m_env.subDisplayFile()) && (m_env.displayVerbosity() >= 0)) {
+     *m_env.subDisplayFile() << "Entering MLSampling<P_V,P_M>::generateSequence()"
+-                            << ", at  "   << ctime(&timevalRoutineBegin.tv_sec)
++                            << ", at  "   << queso_ctime(&timevalRoutineBegin)
+                             << ", after " << timevalRoutineBegin.tv_sec - m_env.timevalBegin().tv_sec
+                             << " seconds from queso environment instatiation..."
+                             << std::endl;
+@@ -4247,7 +4260,7 @@
+     if ((m_env.subDisplayFile()) && (m_env.displayVerbosity() >= 0)) {
+       *m_env.subDisplayFile() << "In MLSampling<P_V,P_M>::generateSequence()"
+                               << ": beginning level " << m_currLevel+LEVEL_REF_ID
+-                              << ", at  "   << ctime(&timevalLevelBegin.tv_sec)
++                              << ", at  "   << queso_ctime(&timevalLevelBegin)
+                               << ", after " << timevalLevelBegin.tv_sec - timevalRoutineBegin.tv_sec
+                               << " seconds from entering the routine"
+                               << ", after " << timevalLevelBegin.tv_sec - m_env.timevalBegin().tv_sec
+@@ -4731,7 +4744,7 @@
+     if ((m_env.subDisplayFile()) && (m_env.displayVerbosity() >= 0)) {
+       *m_env.subDisplayFile() << "Getting at the end of level " << m_currLevel+LEVEL_REF_ID
+                               << ", as part of a 'while' on levels"
+-                              << ", at  "   << ctime(&timevalLevelEnd.tv_sec)
++                              << ", at  "   << queso_ctime(&timevalLevelEnd)
+                               << ", after " << timevalLevelEnd.tv_sec - timevalRoutineBegin.tv_sec
+                               << " seconds from entering the routine"
+                               << ", after " << timevalLevelEnd.tv_sec - m_env.timevalBegin().tv_sec
+@@ -4810,7 +4823,7 @@
+ 
+   if ((m_env.subDisplayFile()) && (m_env.displayVerbosity() >= 0)) {
+     *m_env.subDisplayFile() << "Leaving MLSampling<P_V,P_M>::generateSequence()"
+-                            << ", at  "   << ctime(&timevalRoutineEnd.tv_sec)
++                            << ", at  "   << queso_ctime(&timevalRoutineEnd)
+                             << ", after " << timevalRoutineEnd.tv_sec - timevalRoutineBegin.tv_sec
+                             << " seconds from entering the routine"
+                             << ", after " << timevalRoutineEnd.tv_sec - m_env.timevalBegin().tv_sec

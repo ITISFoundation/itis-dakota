@@ -1,0 +1,23 @@
+--- a/packages/external/JEGA/Utilities/CMakeLists.txt
++++ b/packages/external/JEGA/Utilities/CMakeLists.txt
+@@ -42,4 +42,7 @@
+   src/TwoSidedInequalityConstraintType.cpp 
+   src/UnconstrainedStatistician.cpp
+ )
++# utilities calls eddy::utilities (Math, RandomNumberGenerator); Windows DLL
++# links need the edge spelled out even though ELF deferred it to runtime.
++target_link_libraries(utilities eutils)
+ install(TARGETS utilities EXPORT ${ExportTarget} DESTINATION lib)
+--- a/packages/external/JEGA/src/CMakeLists.txt
++++ b/packages/external/JEGA/src/CMakeLists.txt
+@@ -73,4 +73,10 @@
+ #endif()
+ #target_link_libraries(jega ${jega_link_libs})
+ 
++# jega calls JEGA::Utilities and eddy::utilities; Windows DLL links are
++# closed-world and need these edges even though ELF deferred them to runtime.
++# (moga/soga/jega_fe stay out: jega objects do not reference them, and adding
++# them would create a link cycle with moga/soga, which do link jega.)
++target_link_libraries(jega utilities eutils)
++
+ INSTALL(TARGETS jega EXPORT ${ExportTarget} DESTINATION lib)

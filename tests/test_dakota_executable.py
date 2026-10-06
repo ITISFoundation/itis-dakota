@@ -1,6 +1,7 @@
 import os
 import pathlib as pl
 import subprocess
+import sys
 import tempfile
 
 
@@ -17,6 +18,13 @@ def test_dakota_executable_help():
     # Help should mention usage or options
     output = result.stdout + result.stderr
     assert "usage" in output.lower() or "dakota" in output.lower()
+
+
+# (V15nb/B32) Driver invocations in this file launch through the active
+# interpreter (`sys.executable` + script) instead of shebang/`echo` execution,
+# so every test here runs on win32 too; the win32 fork-driver skips are gone.
+# Interpreter paths must be space-free (Dakota tokenizes the driver string).
+_PY = sys.executable.replace("\\", "/")
 
 
 def test_dakota_executable_run_simple():
@@ -40,19 +48,36 @@ variables
         descriptors    'x1' 'x2'
 
 interface
-    analysis_drivers = 'echo'
+    analysis_drivers = '{python} driver.py'
     fork
 
 responses
     response_functions = 1
     no_gradients
     no_hessians
-"""
+""".format(python=_PY)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pl.Path(tmp_dir)
         input_file = tmp_path / "dakota_test.in"
         input_file.write_text(dakota_input)
+
+        # Fork driver: read the two variable values, write one response.
+        # (Replaces the old 'echo' driver, a POSIX shell builtin that Windows
+        # cannot exec; the interpreter launch works on every platform.)
+        (tmp_path / "driver.py").write_text(
+            """#!/usr/bin/env python3
+import sys
+
+params_file, results_file = sys.argv[1], sys.argv[2]
+with open(params_file) as f:
+    lines = f.readlines()
+x1 = float(lines[1].split()[0])
+x2 = float(lines[2].split()[0])
+with open(results_file, "w") as f:
+    f.write(f"{x1 + x2} response\\n")
+"""
+        )
 
         # Run dakota with the input file
         result = subprocess.run(
@@ -74,6 +99,10 @@ responses
         ).exists(), "Dakota did not create tabular output file"
 
 
+# No windows skip here: dakota -check stops after input parsing and never
+# resolves or spawns the 'echo' fork driver below, so this test is valid on
+# every platform (the fork-driver skipif stays on the tests that actually
+# run studies).
 def test_dakota_executable_check_syntax():
     """Test that dakota executable can check input file syntax."""
     dakota_input = """
@@ -123,7 +152,8 @@ responses
 
 def test_dakota_executable_moga():
     """Test that dakota executable can run multi-objective genetic algorithm."""
-    # Use a simpler approach with echo to avoid script complexity
+    # Use a simpler approach with an interpreter-launched script to avoid
+    # script complexity (and to work where shebang exec is unavailable).
     dakota_input = """
 environment
     tabular_data
@@ -142,7 +172,7 @@ variables
         descriptors    'x1'  'x2'
 
 interface
-    analysis_drivers = 'rosenbrock'
+    analysis_drivers = '{python} rosenbrock'
     fork
     parameters_file = 'params.in'
     results_file = 'results.out'
@@ -153,7 +183,7 @@ responses
     objective_functions = 2
     no_gradients
     no_hessians
-"""
+""".format(python=_PY)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pl.Path(tmp_dir)
@@ -253,14 +283,14 @@ variables
         descriptors   'x1' 'x2'
 
 interface
-    analysis_drivers = './driver'
+    analysis_drivers = '{python} driver'
     fork
 
 responses
     response_functions = 1
     no_gradients
     no_hessians
-"""
+""".format(python=_PY)
 
     # Second run - restart and add more samples
     dakota_input_restart = """
@@ -283,14 +313,14 @@ variables
         descriptors   'x1' 'x2'
 
 interface
-    analysis_drivers = './driver'
+    analysis_drivers = '{python} driver'
     fork
 
 responses
     response_functions = 1
     no_gradients
     no_hessians
-"""
+""".format(python=_PY)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pl.Path(tmp_dir)
@@ -392,6 +422,13 @@ except Exception as e:
         assert (
             tmp_path / "dakota_restart.dat"
         ).exists(), "Restart tabular file not created"
+        # Decisive for win32 coverage (V15nb/B32): the archive written by
+        # phase 1 on THIS platform was loaded back by phase 2 (same-process
+        # dakota envs degrade across multiple studies, so restart coverage
+        # lives on this subprocess-isolated exe path — see SPEC B33).
+        assert "Reading restart file" in result2.stdout, (
+            "restart phase did not actually load the archive"
+        )
 
         # Verify restart had effect (should have evaluations)
         restart_content = (tmp_path / "dakota_restart.dat").read_text()

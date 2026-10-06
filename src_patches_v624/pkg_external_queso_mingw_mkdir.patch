@@ -1,0 +1,27 @@
+--- a/packages/external/queso/src/misc/src/Miscellaneous.C
++++ b/packages/external/queso/src/misc/src/Miscellaneous.C
+@@ -33,6 +33,9 @@
+ #include <sstream>
+ #include <libgen.h>
+ #include <sys/stat.h>
++#ifdef _WIN32
++#include <direct.h>   // _mkdir
++#endif
+ #include <cmath>
+ 
+ namespace QUESO {
+@@ -460,7 +463,13 @@
+ 
+   if(stat(dirname,&st) != 0)
+     {
+-      if( mkdir(dirname,0700) != 0 )
++      if(
++#ifdef _WIN32
++        _mkdir(dirname) != 0
++#else
++        mkdir(dirname,0700) != 0
++#endif
++	)
+ 	{
+ 	  std::cerr << __func__ << ": error - unable to create directory " << dirname << std::endl;
+ 	  return -1;
