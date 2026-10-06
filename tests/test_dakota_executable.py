@@ -422,6 +422,13 @@ except Exception as e:
         assert (
             tmp_path / "dakota_restart.dat"
         ).exists(), "Restart tabular file not created"
+        # Decisive for win32 coverage (V15nb/B32): the archive written by
+        # phase 1 on THIS platform was loaded back by phase 2 (same-process
+        # dakota envs degrade across multiple studies, so restart coverage
+        # lives on this subprocess-isolated exe path — see SPEC B33).
+        assert "Reading restart file" in result2.stdout, (
+            "restart phase did not actually load the archive"
+        )
 
         # Verify restart had effect (should have evaluations)
         restart_content = (tmp_path / "dakota_restart.dat").read_text()
