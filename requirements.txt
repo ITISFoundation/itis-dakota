@@ -2,11 +2,11 @@
 #    uv pip compile pyproject.toml --python-version 3.12 -o requirements.txt
 annotated-types==0.8.0
     # via pydantic
-numpy==2.5.3
+numpy==2.5.4
     # via itis-dakota (pyproject.toml)
-pydantic==2.13.5
+pydantic==2.14.2
     # via itis-dakota (pyproject.toml)
-pydantic-core==2.46.5
+pydantic-core==2.50.2
     # via pydantic
 typing-extensions==4.16.0
     # via

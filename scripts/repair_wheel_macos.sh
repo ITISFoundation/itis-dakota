@@ -36,15 +36,17 @@ DELOCATE_ARCHS=${3:-$(uname -m)}
 
 mkdir -p "${DEST_DIR}"
 
-if ! command -v delocate-wheel >/dev/null 2>&1; then
-    python3 -m pip install --quiet delocate
-fi
+TMPDIR=$(mktemp -d)
+
+# Homebrew Python is PEP 668 "externally managed": install tools in a venv.
+VENV="${TMPDIR}/venv"
+python3 -m venv "${VENV}"
+"${VENV}/bin/python" -m pip install --quiet delocate wheel
 
 # Step 1: standard delocate-wheel pass to bundle dependencies.
 # We exclude python interpreter shims because the wheel is installed into
 # an existing Python and must not ship its own interpreter.
-TMPDIR=$(mktemp -d)
-delocate-wheel \
+"${VENV}/bin/delocate-wheel" \
     --require-archs "${DELOCATE_ARCHS}" \
     --exclude libpython \
     --exclude Python.framework \
@@ -413,9 +415,6 @@ done < <(find "${WORKDIR}" -type f)
 # Step 5: re-zip the wheel.
 # We must update the RECORD file because we changed file contents.
 # Easiest: use `wheel pack`.
-if ! python3 -c "import wheel" 2>/dev/null; then
-    python3 -m pip install --quiet wheel
-fi
-python3 -m wheel pack --dest-dir "${DEST_DIR}" "${WORKDIR}"
+"${VENV}/bin/python" -m wheel pack --dest-dir "${DEST_DIR}" "${WORKDIR}"
 
 rm -rf "${TMPDIR}"
