@@ -4,7 +4,7 @@ annotated-types==0.8.0
     # via pydantic
 numpy==2.5.4
     # via itis-dakota (pyproject.toml)
-pydantic==2.14.2
+pydantic==2.14.3
     # via itis-dakota (pyproject.toml)
 pydantic-core==2.50.2
     # via pydantic
