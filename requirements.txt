@@ -6,7 +6,7 @@ numpy==2.5.4
     # via itis-dakota (pyproject.toml)
 pydantic==2.14.2
     # via itis-dakota (pyproject.toml)
-pydantic-core==2.50.2
+pydantic-core==2.50.5
     # via pydantic
 typing-extensions==4.16.0
     # via
